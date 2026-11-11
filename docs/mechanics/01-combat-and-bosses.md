@@ -56,3 +56,18 @@ Every swing should feel deliberate and readable. The player should win by timing
 - Boss damage and attack rhythm with players of different skill.
 - Whether one attacker at a time is too easy with three or more enemies.
 - Stamina costs: whether players run out too often during the boss fight.
+
+## Since v4 (Nov 2026)
+
+| Addition | How it works |
+|---|---|
+| Charged strikes | Hold left click to charge; a heavy blow with a follow-through pose |
+| Precision kills | Enemies open a short window inside their own swing; a charged strike released inside it kills in one blow, with slow motion. Online it is requested from the host with a token so two players can't both claim it |
+| Perfect guard | Q at the exact moment of a hit opens a riposte |
+| Small swords | A second melee style (key 3) with its own animation set on the same Animator states |
+| Sword arts | F releases a charged ultimate per sword; the charge is a personal reserve, so switching swords can't create or erase it |
+| Quick wheel and auto-draw | Hold Tab for a radial wheel; the weapon is drawn by itself when enemies start hunting you |
+| Bosses | Intro shot, side-steps and back-dodges, a clean restart after the player dies |
+| Bleeding | Three real hits within a short window at low health start bleeding until a bandage, a full sleep or a respawn |
+
+The strong attack moved from F to holding the attack button; F became the sword art.
