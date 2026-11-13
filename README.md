@@ -1,8 +1,8 @@
-# Mossblood - Feudal Japan Survival Action RPG
+# Mossblood
 
 > Follow your father's trail across a feudal Japan of islands, where every demon stone makes you stronger, and takes something in return. A third-person survival action RPG: explore on foot or on horseback, read enemies to kill them in one blow, survive weather, seasons and the cold, and piece together the story from the people you meet. Solo or online co-op (2–4 players).
 
-![Unity](https://img.shields.io/badge/Unity-6000.6.2f1-black?logo=unity) ![URP](https://img.shields.io/badge/Render-URP-blue) ![C#](https://img.shields.io/badge/C%23-329_scripts_·_~61k_lines-purple) ![Netcode](https://img.shields.io/badge/Multiplayer-Netcode_%2B_Relay-green)
+![Unity](https://img.shields.io/badge/Unity-6000.6.2f1-black?logo=unity) ![URP](https://img.shields.io/badge/Render-URP-blue) ![C#](https://img.shields.io/badge/Language-C%23-purple) ![Netcode](https://img.shields.io/badge/Multiplayer-Netcode_%2B_Relay-green)
 
 ![Gameplay](docs/media/gameplay.gif)
 
@@ -10,7 +10,7 @@
 
 ## About
 
-A solo project in Unity 6 (URP), started in August 2026. The world is five hand-made islands joined by bridges; each island is one chapter of the main quest and holds one of the five **Onistones**, demon stones every warlord wants. Design pillars:
+A solo project in Unity 6 (URP), started in August 2026. The main quest spans five planned islands linked by bridges. Three zones are present in the Unity scene: The Pilgrim Valley, The Southern Coast and The River Lands. Each chapter follows one of the five **Onistones**, demon stones every warlord wants. Design pillars:
 
 1. **Rewarding exploration** – every place offers gear, a relic, a person with part of the story, danger or scenery.
 2. **Combat with weight** – clear attacks, blocks and dodges; a strike released inside the enemy's swing kills in one blow.
@@ -43,7 +43,7 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 **Combat**
 - Katana, two small swords (own animation set) and bow with a limited, refilling quiver
 - Combos with buffered input, hold-to-charge strikes and **precision kills**: release a charged strike inside the enemy's swing for a one-hit kill with slow motion; perfect guard opens a riposte
-- Sword arts (ultimate) with a charge orb, quick weapon wheel, auto-draw when hunted
+- Sword arts with a shared eight-hit reserve, a quick weapon wheel and auto-draw when hunted
 - Cinematic finishers, hit-stop, blood on blade and ground, bleeding status
 - Bosses with intro, lock-on camera, strafing, dodges and a fresh restart after you die
 - Group AI that takes turns; archers that hold their aim; surprise patrols on the road
@@ -66,6 +66,11 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 - Merchants with rotating stock, village requests, relics, deliveries and fast travel (only to people met)
 - Horses bought at stables (always shown on the map), called with H, walk / trot / gallop
 
+**Ronin League, war and expeditions**
+- Earn honour to rise through a league of 40 rivals and challenge ronin in the arena
+- Hire ronin, pay wages and lead available fighters into field battles
+- Send a party on an expedition and collect spoils from the journal
+
 **Menus, saves and online**
 - Main menu with a smooth fade into the father's letter while the world loads
 - Save list like *The Witcher* (quick, manual, rotating autosaves), atomic writes
@@ -75,7 +80,7 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 
 | Topic | What I did |
 |---|---|
-| **Architecture** | 329 scripts organised by system; big classes split into topic partials (`PlayerCombat.Precision.cs`, `EnemyAI_01.Archer.cs`…); tuning numbers in static *rules* classes; self-creating systems; statics reset for Play mode without domain reload |
+| **Architecture** | C# scripts organised by system; big classes split into topic partials (`PlayerCombat.Precision.cs`, `EnemyAI_01.Archer.cs`…); tuning numbers in static *rules* classes; self-creating systems; statics reset for Play mode without domain reload |
 | **World streaming** | Islands sleep when far (no drawing, physics or scripts) and wake within a per-frame time budget, nearest first; all at once behind a black screen for fast travel and loading |
 | **Performance** | Render-distance culling sliced across frames, deep-forest budget (fog + tree/grass/shadow/LOD bias), animator culling for scenery characters, native particle pools everywhere, no per-frame searches or allocations. [Details](docs/mechanics/07-performance.md) |
 | **Quest robustness** | One function counts story progress; a permanent progress record drives gates and locks; an editor check validates every chapter in the scene |
@@ -97,6 +102,8 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 | World streaming | `Scripts/World/Streaming/WorldZone.cs`, `WorldZoneStreamer.cs`, `ChapterGate.cs` |
 | Seasons and weather | `Scripts/World/Seasons/*`, `Scripts/World/Environment/Weather/*` |
 | Performance | `Scripts/Rendering/*`, `Scripts/World/Rendering/WorldDistanceVisibility.cs`, `Scripts/World/WorldCleanup.cs` |
+| Ronin League and arena | [Activities](Scripts/Gameplay/Activities) |
+| War and expeditions | `ArmySystem`, `BattleField`, `ExpeditionSystem` |
 | Horses | `Scripts/Gameplay/Horses/HorseMount*.cs` |
 | Camp, crafting | `Scripts/Gameplay/Camp/*`, `Scripts/UI/Gameplay/CraftingWindow*.cs` |
 | Audio | `Scripts/Audio/*` |
@@ -108,8 +115,8 @@ A one-line description of every script is in [AGENTS.md](AGENTS.md) (the project
 
 ## Design documents
 
-- [Game Design Document (v4)](docs/GDD%20-%20Mossblood%20v4.docx)
-- [Technical Design Document (v4)](docs/TDD%20-%20Mossblood%20v4.docx)
+- [Game Design Document (v5)](docs/GDD%20-%20Mossblood%20v5.docx)
+- [Technical Design Document (v5)](docs/TDD%20-%20Mossblood%20v5.docx)
 - [Adding a new zone](docs/adding-a-new-zone.md)
 - Mechanic breakdowns:
   - [Combat and boss fights](docs/mechanics/01-combat-and-bosses.md)
@@ -146,11 +153,12 @@ Designed, directed and tested by me. I use an **AI-assisted workflow** (Claude):
 ## Running the project
 
 - Unity **6000.6.2f1** with URP.
-- This repository holds the **source code and documentation**. Third-party art, animation and audio assets are licensed and not included, so the project will not open as a complete game from this repository alone.
+- This repository holds the **source code and documentation**. Running the game requires the full Unity project, including scenes, settings and licensed assets.
 
 ## Roadmap
 
-- [ ] Island III (The River Lands)
+- [ ] Validate Chapter III from the bridge to the Patient Onistone
+- [ ] Build the islands for Chapters IV and V
 - [ ] A special animated ability for each Onistone set into gear
 - [ ] Deeper economy (hunting, fishing, land and a house)
 - [ ] Balancing pass per island and co-op playtests
