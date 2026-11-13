@@ -4,6 +4,12 @@ using UnityEngine;
 // PlayerEquipmentManager: Backpack drop / pick up (split out of PlayerEquipmentManager.cs; same class, same behaviour)
 public partial class PlayerEquipmentManager
 {
+    internal void PrepareForArenaOrBattle()
+    {
+        DropBackpack();
+        if (CapeWorn) SetCapeStowed(true);
+    }
+
     // ---------- Backpack drop / pick up ----------
 
     public void DropBackpack()
@@ -11,18 +17,17 @@ public partial class PlayerEquipmentManager
         if (!HasBackpackEquipped) return;
 
         PlayerItemData backpack = backpackSlotUI.itemData;
-        List<PlayerItemData> contents = PlayerInventoryManager.Instance != null ? PlayerInventoryManager.Instance.TakeBackpackContents() : new List<PlayerItemData>();
-        // Keep the same size it has on the back
+        // Keep the same size it has on the back.
         Vector3 worldScale = currentBackpackObject != null ? currentBackpackObject.transform.lossyScale : Vector3.zero;
+        Transform actor = PlayerRef.Transform;
+        if (actor == null) actor = transform;
+        DroppedBackpack dropped = DroppedBackpack.Spawn(backpack, actor.position - actor.forward * 0.6f, actor.rotation, worldScale);
+        var inventory = PlayerInventoryManager.Instance;
+        if (inventory != null) dropped.contents = inventory.TakeBackpackContents();
         backpackSlotUI.ClearSlot();
         ClearObject(ref currentBackpackObject);
         RefreshBackpackGrid();
-
-        GameObject player = PlayerRef.Object;
-        Transform p = player != null ? player.transform : transform;
-        DroppedBackpack dropped = DroppedBackpack.Spawn(backpack, p.position - p.forward * 0.6f, p.rotation, worldScale);
-        dropped.contents = contents;
-        Debug.Log($"Dropped backpack: {backpack.itemName} ({contents.Count} items inside)");
+        Debug.Log($"Dropped backpack: {backpack.itemName} ({dropped.contents.Count} items inside)");
     }
 
     // Equips a backpack you just got (bought, looted, crafted, found...). The one you wear is replaced and disappears;

@@ -43,7 +43,7 @@ public class LeafPile : MonoBehaviour
     {
         public Vector3 position, velocity, euler, spinSpeed;
         public float groundY, size, phase, lastGroundCheckX, lastGroundCheckZ, retainedUntil;
-        public bool grounded;
+        public bool grounded, twig; // twig: a small stick with leaves (heavier)
         public Color32 color;
     }
 
@@ -122,12 +122,14 @@ public class LeafPile : MonoBehaviour
                 groundY = ground,
                 grounded = true,
                 euler = (Quaternion.FromToRotation(Vector3.back, normal)*Quaternion.Euler(0,0,Random.Range(0f,360f))).eulerAngles,
-                size = LocalCarpet && (normal.y<.5f || Mathf.Abs(p.y-transform.position.y)>7 || !DryLand.IsDry(p)) ? 0f : Random.Range(leafSize.x, leafSize.y),
+                size = LocalCarpet && (normal.y<.5f || Mathf.Abs(p.y-transform.position.y)>7 || !DryLand.IsDry(p)) ? 0f : Random.Range(leafSize.x, leafSize.y) * LeafMotionRules.LeafScale,
                 phase = Random.value * 10f,
                 lastGroundCheckX = p.x,
                 lastGroundCheckZ = p.z,
-                color = Color.Lerp(colorA, colorB, Random.value)
+                color = Color.Lerp(colorA, colorB, Random.value),
+                twig = !blossomAppearance && Random.value < LeafMotionRules.TwigShareGround
             };
+            if (leaves[i].twig) leaves[i].size *= LeafMotionRules.TwigSize;
         }
         Random.state=randomState;
         WriteParticles();
@@ -185,6 +187,36 @@ public class LeafPile : MonoBehaviour
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = true;
         system.Play();system.Pause(); // Positions/lifetimes are supplied by this controller; native simulation is redundant.
+        BuildTwigSystem(go.transform);
+    }
+
+    // The twigs of the pile: their own small system (twig mesh), a child of the leaves (on / off and destroyed with them)
+    ParticleSystem twigSystem;
+    ParticleSystem.Particle[] twigParticles;
+    LeafWeatherTint twigTint;
+    void BuildTwigSystem(Transform parent)
+    {
+        var go = new GameObject("Twigs");
+        go.transform.SetParent(parent, false);
+        twigSystem = go.AddComponent<ParticleSystem>();
+        twigSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var main = twigSystem.main;
+        main.loop = true; main.playOnAwake = false;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = Mathf.Max(1, count / 6);
+        main.startRotation3D = true; main.startSpeed = 0f; main.gravityModifier = 0f;
+        main.scalingMode = ParticleSystemScalingMode.Shape;
+        ParticleKit.ScriptDriven(twigSystem);
+        var r = go.GetComponent<ParticleSystemRenderer>();
+        r.renderMode = ParticleSystemRenderMode.Mesh;
+        r.mesh = LeafAppearance.Twig();
+        r.alignment = ParticleSystemRenderSpace.World;
+        r.sharedMaterial = LeafAppearance.Material(false);
+        twigTint = new LeafWeatherTint(r);
+        twigTint.Apply(LeafWeatherTint.WeatherBrightness());
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = true;
+        twigSystem.Play(); twigSystem.Pause();
     }
 
     Material AcquireAppearance()
@@ -210,6 +242,7 @@ public class LeafPile : MonoBehaviour
     {
         if (leaves == null) return;
         weatherTint?.Apply(LeafWeatherTint.WeatherBrightness());
+        twigTint?.Apply(LeafWeatherTint.WeatherBrightness());
         Camera cam = Camera.main;
         if (cam != null && (cam.transform.position - transform.position).sqrMagnitude > (activeDistance + radius) * (activeDistance + radius)) return;
 
@@ -298,11 +331,12 @@ public class LeafPile : MonoBehaviour
                 if (impulse.y < 0.15f && !dodge) impulse.y = 0f; // a slow walk just slides them
 
                 Leaf l = leaves[i];
+                if (l.twig) { impulse.x *= .7f; impulse.z *= .7f; impulse.y *= LeafMotionRules.TwigLift; } // a twig is heavier
                 l.velocity = Vector3.ClampMagnitude(impulse,5f); // one quick foot impulse, followed by air drag
                 if (l.velocity.y > 0.2f || impulse.sqrMagnitude > 0.5f)
                 {
                     l.grounded = false;
-                    l.spinSpeed = Random.onUnitSphere * spin * Random.Range(0.4f, 1f);
+                    l.spinSpeed = Random.onUnitSphere * spin * Random.Range(0.4f, 1f) * (l.twig ? LeafMotionRules.TwigSpin : 1f);
                 }
                 leaves[i] = l;
                 particlesDirty=true;
@@ -323,7 +357,7 @@ public class LeafPile : MonoBehaviour
         for(int k=0;k<12;k++)
         {
             int i=windCursor;windCursor=(windCursor+1)%leaves.Length;Leaf l=leaves[i];
-            if(!l.grounded || l.size<=0 || Random.value>.18f*gust)continue;
+            if(!l.grounded || l.size<=0 || Random.value>.18f*gust*(l.twig?.2f:1f))continue;
             float wet=Mathf.Lerp(1,.45f,Mathf.Clamp01(RainSystem.RainAmount));
             l.grounded=false;l.velocity=wind*(.5f+gust)*wet+Vector3.up*LeafMotionRules.WindLift(RainSystem.RainAmount,gust,Random.value);
             l.spinSpeed=Random.onUnitSphere*spin*.6f;leaves[i]=l;particlesDirty=true;awake=true;
@@ -344,7 +378,7 @@ public class LeafPile : MonoBehaviour
             leaves[index]=new Leaf{
                 position=particle.position,groundY=particle.position.y-.02f,
                 grounded=true,euler=particle.rotation3D,size=particle.startSize,color=particle.startColor,
-                phase=(particle.randomSeed%1000)*.37f,
+                phase=(particle.randomSeed%1000)*.37f,twig=!blossom && LeafMotionRules.IsTwig(particle.randomSeed),
                 lastGroundCheckX=particle.position.x,lastGroundCheckZ=particle.position.z,
                 retainedUntil=retainedUntil};
             adoptedDirty=true;return true;
@@ -381,8 +415,8 @@ public class LeafPile : MonoBehaviour
 
             // In the air: light gravity, capped fall speed, sideways braking, flutter
             float height=Mathf.Max(0,l.position.y-l.groundY);
-            float settling=Mathf.Lerp(.38f,.78f,Mathf.Clamp01(height/2f))*(.85f+.15f*Mathf.Sin(l.phase));
-            l.velocity=LeafMotionRules.AirVelocity(l.velocity,LeafMotionRules.AirCurrent(wind,l.phase,t),drag,dt,settling);
+            float settling=Mathf.Lerp(.38f,.78f,Mathf.Clamp01(height/2f))*(.85f+.15f*Mathf.Sin(l.phase))*(l.twig?LeafMotionRules.TwigFall:1f);
+            l.velocity=LeafMotionRules.AirVelocity(l.velocity,LeafMotionRules.AirCurrent(l.twig?wind*LeafMotionRules.TwigWind:wind,l.phase,t),l.twig?drag*.65f:drag,dt,settling);
             l.position += l.velocity * dt;
             l.euler += (l.spinSpeed+new Vector3(Mathf.Sin(t*2.2f+l.phase)*28f,0,Mathf.Cos(t*1.8f+l.phase)*24f))*dt;
             l.spinSpeed *= spinBrake;
@@ -415,21 +449,27 @@ public class LeafPile : MonoBehaviour
     LeafWeatherTint weatherTint;
     void WriteParticles()
     {
-        int visible=0;
+        int visible=0,twigs=0;
+        int twigMax=twigSystem!=null?twigSystem.main.maxParticles:0;
+        if(twigSystem!=null && (twigParticles==null || twigParticles.Length!=twigMax))twigParticles=new ParticleSystem.Particle[twigMax];
+        float grow=Mathf.SmoothStep(0,1,reveal);
         for (int i = 0; i < leaves.Length; i++)
         {
             Leaf l = leaves[i];
             if(l.size<=0)continue;
-            particles[visible].position = l.position;
-            particles[visible].velocity = Vector3.zero;
-            particles[visible].rotation3D = l.euler;
-            particles[visible].startSize = l.size * Mathf.SmoothStep(0,1,reveal);
-            particles[visible].startColor = l.color;
-            particles[visible].startLifetime = 1e6f;
-            particles[visible].remainingLifetime = 1e6f;
-            visible++;
+            bool asTwig=l.twig && !blossomAppearance && twigs<twigMax;
+            ref ParticleSystem.Particle p = ref (asTwig ? ref twigParticles[twigs] : ref particles[visible]);
+            p.position = l.position;
+            p.velocity = Vector3.zero;
+            p.rotation3D = l.euler;
+            p.startSize = l.size * grow;
+            p.startColor = l.color;
+            p.startLifetime = 1e6f;
+            p.remainingLifetime = 1e6f;
+            if(asTwig)twigs++;else visible++;
         }
         system.SetParticles(particles, visible);
+        if(twigSystem!=null)twigSystem.SetParticles(twigParticles, twigs);
     }
 
     void OnDrawGizmosSelected()

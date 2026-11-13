@@ -71,7 +71,7 @@ public partial class HorseMount
 
         if (hasMountedParam && animator != null) animator.SetBool(mountedHash, true);
 
-        if (neighSound != null && Random.value < 0.5f) audioSource.PlayOneShot(neighSound, Volume() * 0.8f);
+        if (neighSound != null && Random.value < 0.5f) audioSource.PlayOneShot(neighSound, Volume() * 0.8f * NeighVolume);
 
     }
 

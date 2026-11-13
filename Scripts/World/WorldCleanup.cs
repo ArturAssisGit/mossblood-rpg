@@ -19,8 +19,8 @@ public class WorldCleanup : MonoBehaviour
 
     [Header("Other leftovers (seconds)")]
     [Min(0f)] public float arrowSeconds = 10f;
-    [Tooltip("Dead enemies (time for the death animation)")] [Min(0f)] public float enemyCorpseSeconds = 5f;
-    [Tooltip("Dead animals")] [Min(0f)] public float animalCorpseSeconds = 90f;
+    [Tooltip("Dead enemies (time for the death animation)")] [Min(0f)] public float enemyCorpseSeconds = 60f;
+    [Tooltip("Dead animals")] [Min(0f)] public float animalCorpseSeconds = 60f;
 
     [Tooltip("Maximum expired objects destroyed per cleanup tick, to spread large waves across frames")]
     [Min(1)] public int maxRemovalsPerCheck = 24;

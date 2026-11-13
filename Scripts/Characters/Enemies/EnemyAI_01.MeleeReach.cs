@@ -55,6 +55,17 @@ public partial class EnemyAI_01
     }
     bool ApplyMeleeDamage(Transform victim,float damage)
     {
+        // Army battle: a blow on a fighter of the other side (never on its own side)
+        if(battle!=null)
+        {
+            var foe=victim.GetComponentInParent<EnemyAI_01>();
+            if(foe!=null)
+            {
+                if(foe.IsDead || !BattleCombatant.Hostile(this,foe))return false;
+                foe.TakeDamage(damage,transform.position,0f);return true;
+            }
+            if(battle.team==BattleTeam.Player)return false; // your ronin never hurt you
+        }
         var stats=VictimStats(victim);
         if(stats!=null){stats.TakeEnemyDamage(damage,transform.position,isBoss?Sfx.BossHit:Sfx.EnemyHit);return true;}
         var remote=victim==observedTarget?observedRemote:victim.GetComponentInParent<RemotePlayerAvatar>();

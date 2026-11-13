@@ -141,7 +141,7 @@ public sealed class GroundMud : MonoBehaviour
     void BuildCellOrder()
     {
         int range = Mathf.Clamp(cellRange,2,6);
-        if (orderedRange == range) return;
+        if (orderedRange == range && orderedCells.Count > 0) return; // (the list can come back empty after a script reload)
         orderedRange = range; scanCursor = 0; orderedCells.Clear();
         for (int ring = 0; ring <= range; ring++)
             for (int z = -ring; z <= ring; z++) for (int x = -ring; x <= ring; x++)

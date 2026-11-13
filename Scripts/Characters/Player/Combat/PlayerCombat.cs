@@ -191,6 +191,7 @@ public partial class PlayerCombat : MonoBehaviour
 
     public void CancelAttack()
     {
+        CancelBite(); // never leave the blade (or the enemy) frozen
         ClearChargedRecovery();
         CancelSwordAbility();
         CancelMeleeHold(true);
@@ -526,7 +527,7 @@ public partial class PlayerCombat : MonoBehaviour
 
     void ApplySpiritSlowdown()
     {
-        if (anim == null) return;
+        if (anim == null || biting) return; // the blade weight owns the speed for that instant
         float k = PlayerStats.SpiritSpeed;
         if (k < 0.999f && anim.GetCurrentAnimatorStateInfo(0).IsTag("Attack"))
         {
@@ -745,6 +746,7 @@ public partial class PlayerCombat
     Vector3 BladeSamplePoint() => sampledBladeRenderer != null ? sampledBladeRenderer.bounds.center : sampledBlade.position;
     void LateUpdate()
     {
+        LiftChargeHand(); // PlayerCombat.Charge.cs: the held first cut keeps the blade off the hat
         if (!sampleBladeHitDirection || !swingDamagePending || pendingKick || sampledBlade == null) return;
         SampleBladeDirection();
     }

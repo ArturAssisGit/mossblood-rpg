@@ -103,7 +103,8 @@ public partial class EnemyAI_01
         CancelCombatAction();
         isDead = true;
         ClearActionTriggers();
-        if (firstDeath) { if (CountsForLocalDiary()) DiaryProgress.RecordEnemyDefeat(); Defeated?.Invoke(this); }
+        // A ronin of your army that falls is not a defeated enemy (no diary, no League honor)
+        if (firstDeath && !BattleCombatant.IsAlly(this)) { if (CountsForLocalDiary()) DiaryProgress.RecordEnemyDefeat(); Defeated?.Invoke(this); }
         Disengage(); // the next enemy comes in after nextAttackerDelay
         if (logCombatEvents) Debug.Log("Enemy died!");
 
@@ -119,6 +120,7 @@ public partial class EnemyAI_01
     void DropLoot()
     {
         if(lootDropped)return;
+        if(BattleCombatant.IsAlly(this)){lootDropped=true;return;} // your own ronin carry nothing to loot
         lootDropped=true;
         // One personal roll per death/player, never multiplied again by party size.
         int seed=CoopBalanceRules.LootSeed(PersonalLootSeed,CoopDifficulty.LootOwner);

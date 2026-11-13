@@ -62,7 +62,8 @@ public static class PlayerRef
         {
             if (Time.timeScale <= 0f || TitleScreenManager.IsOpen || PauseMenu.IsOpen || MenuWindow.AnyOpen
                 || MapSystem.IsMapOpen || ScreenFade.IsActive || SleepSystem.IsSleeping || CampSystem.CinematicActive
-                || RespawnSystem.IsDeathScreenOpen || MultiplayerSession.PanelOpen || BossEncounterDirector.IsIntroducing || BossEncounterDirector.IsRestarting) return true;
+                || RespawnSystem.IsDeathScreenOpen || MultiplayerSession.PanelOpen || BossEncounterDirector.IsIntroducing || BossEncounterDirector.IsRestarting
+                || RoninArena.HoldsPlayer || BattleField.HoldsPlayer) return true; // the arena / battle countdown: no free hits before the start
             PlayerEquipmentManager gear = PlayerEquipmentManager.Instance;
             PlayerStats currentStats = Stats;
             return (gear != null && gear.IsOpen) || (currentStats != null && currentStats.IsDead);

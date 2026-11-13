@@ -194,6 +194,33 @@ public sealed class WorldZone : MonoBehaviour
     // Somewhere you can go now (deliveries, fast travel...)
     public static bool Reachable(Vector3 position) => LockedAt(position) == null;
 
+    // The island whose land this point is on (null = none: the sea, a bridge between islands)
+    public static WorldZone At(Vector3 position)
+    {
+        foreach (WorldZone zone in zones)
+            if (zone != null && zone.isActiveAndEnabled && zone.DistanceTo(position) <= 0f) return zone;
+        return null;
+    }
+
+    // Things that appear around the player (animals, patrols, travellers, wild horses) stay on the island he stands on:
+    // never across the water on another island, never on a closed one. On a bridge / between islands: any open land.
+    public static bool SameIslandAsPlayer(Vector3 position)
+    {
+        Transform me = PlayerRef.Transform;
+        return me == null ? !(At(position) is WorldZone z && z.Locked) : SameIsland(me.position, position);
+    }
+
+    // The same rule for any player (co-op): 'point' is on the island 'from' stands on (or 'from' is between islands),
+    // and never on a closed island
+    public static bool SameIsland(Vector3 from, Vector3 point)
+    {
+        WorldZone there = At(point);
+        if (there != null && there.Locked) return false;
+        if (there == null) return true;
+        WorldZone mine = At(from);
+        return mine == null || mine == there;
+    }
+
     // The island's shape (read once, the first time it is needed)
     internal ZoneLandMask LandMask
     {

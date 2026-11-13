@@ -96,6 +96,8 @@ public partial class CampSystem : MonoBehaviour
         if (HorseMount.PlayerMounted) return "Get off your horse first.";
         if (SleepSystem.IsSleeping || ScreenFade.IsActive || RespawnSystem.IsDeathScreenOpen || PlacementSystem.IsPlacing) return "";
         if (BossEncounterDirector.IsIntroducing || PlayerFinisher.IsActive || NpcDialogue.IsOpen) return "Not now.";
+        if (RoninArena.InDuel) return "Not in the middle of a duel.";
+        if (BattleField.InWar) return "Not in the middle of a battle.";
         if (!DryLand.IsDry(player.position, 0.1f)) return "You can't set up camp in the water.";
 
         float near = Instance != null ? Instance.enemyRadius : 22f;

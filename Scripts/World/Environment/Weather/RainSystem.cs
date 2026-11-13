@@ -177,7 +177,7 @@ public class RainSystem : MonoBehaviour
 
     void Update()
     {
-        if (toggleKey != KeyCode.None && Input.GetKeyDown(toggleKey))
+        if (toggleKey != KeyCode.None && (Application.isEditor || Debug.isDebugBuild) && Input.GetKeyDown(toggleKey)) // a test key: editor and Development builds only
         {
             // Cycle: dry -> preset 1 -> preset 2 -> ... -> dry
             int next = target > 0.5f ? presetIndex + 1 : 0;

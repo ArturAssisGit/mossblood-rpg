@@ -107,6 +107,38 @@ public partial class PlayerCombat
             if(info.clip!=null && info.weight>weight){duration=info.clip.length;weight=info.weight;}
         return duration;
     }
+    [Header("Charge pose: keep the blade off the hat")]
+    [Tooltip("While you hold a charge on the first cut of the combo (or the right button), the sword hand is moved this much UP (meters) so the blade clears the hat. 0 = off")]
+    [Range(0f,.35f)]public float chargeHandLift=.18f;
+    [Tooltip("...and this much out to your right side (meters), away from the head")]
+    [Range(0f,.2f)]public float chargeHandOut=.05f;
+    float handLiftWeight;
+    Transform liftUpperArm,liftLowerArm,liftHand;
+    bool liftBonesLooked;
+
+    // Two-bone arm IK: the hand (and the katana in it) is moved straight up and a little outward, the elbow bends to
+    // follow, and the hand keeps its exact rotation - the blade keeps the animation's angle, it just sits higher.
+    void LiftChargeHand()
+    {
+        bool want=IsCharging && DualSet==null && (chargeStage==0 || heldMeleeCommand==MeleeCommand.Strong);
+        handLiftWeight=Mathf.MoveTowards(handLiftWeight,want?1f:0f,Time.deltaTime/.15f);
+        if(handLiftWeight<=0f || (chargeHandLift<=0f && chargeHandOut<=0f) || anim==null)return;
+        if(!liftBonesLooked)
+        {
+            liftBonesLooked=true;
+            if(anim.isHuman)
+            {
+                liftUpperArm=anim.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                liftLowerArm=anim.GetBoneTransform(HumanBodyBones.RightLowerArm);
+                liftHand=anim.GetBoneTransform(HumanBodyBones.RightHand);
+            }
+        }
+        if(liftUpperArm==null || liftLowerArm==null || liftHand==null)return;
+        float w=Mathf.SmoothStep(0f,1f,handLiftWeight);
+        Vector3 target=liftHand.position+(transform.up*chargeHandLift+transform.right*chargeHandOut)*w;
+        ChargeArmIK.Solve(liftUpperArm,liftLowerArm,liftHand,target);
+    }
+
     float ChargeDamage(float power,float pose)=>MeleeChargeRules.Damage(power,pose>0f,chargedDamageMultiplier);
     void ReturnAfterFailedCharge(float pose){if(pose>0 && anim!=null)anim.CrossFadeInFixedTime(IdleStateName,attackCrossFade,0);}
     void DoRightSwing(float power,float pose,float elapsedPoseSeconds)
@@ -155,4 +187,31 @@ public struct ChargedAttackChain
         return speed;
     }
     public void Clear(){Remaining=0;}
+}
+
+// Two-bone IK (shoulder - elbow - hand) that keeps the current bend plane and the hand's world rotation
+public static class ChargeArmIK
+{
+    public static void Solve(Transform upper,Transform lower,Transform end,Vector3 target)
+    {
+        Quaternion endRotation=end.rotation;
+        Vector3 a=upper.position,b=lower.position,c=end.position;
+        Vector3 ab=b-a,bc=c-b,ac=c-a,at=target-a;
+        float abLen=ab.magnitude,bcLen=bc.magnitude;
+        if(abLen<1e-4f || bcLen<1e-4f)return;
+        float acLen=ac.magnitude;
+        float atLen=Mathf.Clamp(at.magnitude,Mathf.Abs(abLen-bcLen)+1e-3f,(abLen+bcLen)*.999f);
+        Vector3 axis=Vector3.Cross(ab,bc);
+        if(axis.sqrMagnitude<1e-8f)return; // arm fully straight: no bend plane to keep
+        axis.Normalize();
+        float half=.5f*(Angle(acLen,abLen,bcLen)-Angle(atLen,abLen,bcLen));
+        float sin=Mathf.Sin(half),cos=Mathf.Cos(half);
+        lower.rotation=new Quaternion(axis.x*sin,axis.y*sin,axis.z*sin,cos)*lower.rotation;
+        ac=end.position-a;
+        if(ac.sqrMagnitude>1e-8f && at.sqrMagnitude>1e-8f)upper.rotation=Quaternion.FromToRotation(ac,at)*upper.rotation;
+        end.rotation=endRotation;
+    }
+    // Inner angle opposite to side 'opposite' in a triangle with the two other sides
+    static float Angle(float opposite,float side1,float side2)=>
+        Mathf.Acos(Mathf.Clamp((side1*side1+side2*side2-opposite*opposite)/(2f*side1*side2),-1f,1f));
 }

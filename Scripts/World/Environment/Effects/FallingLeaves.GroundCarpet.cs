@@ -75,7 +75,7 @@ public partial class FallingLeaves
                 go.transform.SetParent(transform,false);
                 pile=go.AddComponent<LeafPile>();carpet[slot]=pile;
                 pile.LocalCarpet=true;
-                pile.count=Mathf.Clamp(leavesPerPatch,120,800);
+                pile.count=Mathf.RoundToInt(Mathf.Clamp(leavesPerPatch,120,800)*AmountScale);
                 pile.radius=3.6f;pile.clumping=.65f;pile.enemiesKick=false;
                 pile.leafSize=new Vector2(.12f,.23f);
                 pile.kickRadius=1.15f;pile.push=.65f;pile.lift=2.2f;
@@ -137,7 +137,15 @@ public partial class FallingLeaves
 // Shared by the tree leaves, blossom petals and floor piles.
 public static class LeafMotionRules
 {
-    public const float Gravity=2.6f, FallSpeed=1.05f;
+    public const float Gravity=2.6f, FallSpeed=1.25f; // a touch heavier: leaves reach the ground instead of hanging in the air
+    // Every leaf (falling, carried by the wind, lying on the ground) is drawn at this share of its set size
+    public const float LeafScale=.8f;
+    // Small twigs with leaves on them: drawn by their own particle systems (twig mesh), marked with this
+    // bit in the particle's random seed, and heavier in the air (fall faster, the wind moves them less, spin slower)
+    public const uint TwigBit=0x40000000u;
+    public const float TwigShareFalling=.14f, TwigShareGround=.07f, TwigSize=1.5f; // TwigSize: times a leaf's size
+    public const float TwigFall=1.9f, TwigWind=.45f, TwigFlutter=.3f, TwigSpin=.45f, TwigLift=.5f;
+    public static bool IsTwig(uint seed)=>(seed&TwigBit)!=0u;
     public static float WindLift(float rain,float gust,float variation)=>Mathf.Lerp(.75f,1.65f,variation)*Mathf.Lerp(1,.7f,Mathf.Clamp01(rain))*(.7f+Mathf.Clamp01(gust)*.3f);
     public static Vector3 AirVelocity(Vector3 velocity,Vector3 wind,float drag,float dt,float terminal=FallSpeed)
     {

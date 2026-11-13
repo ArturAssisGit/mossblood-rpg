@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Unity.Netcode;
 
-public class TitleScreenManager : MonoBehaviour
+public partial class TitleScreenManager : MonoBehaviour
 {
     [Header("Main Menu (optional)")]
     [Tooltip("The Continue button - it is greyed out when there is no save")] public Button continueButton;
@@ -50,6 +50,7 @@ public class TitleScreenManager : MonoBehaviour
 
     void OnEnable() => IsOpen = true;
     void OnDisable() => IsOpen = false;
+    void OnDestroy() => DestroyModernLook();
 
     void Start()
     {
@@ -82,6 +83,7 @@ public class TitleScreenManager : MonoBehaviour
             StyleTextButton(b);
         }
 
+        BuildModernLook(); // menu on the left, background, mist, petals (TitleScreenManager.Look.cs)
         if (showPressAnyButton) SetupPressAny();
         if (settingsPanel != null) settingsPanel.SetActive(false);
 
@@ -133,7 +135,7 @@ public class TitleScreenManager : MonoBehaviour
         MenuTextButton word = button.GetComponent<MenuTextButton>();
         if (word == null) word = button.gameObject.AddComponent<MenuTextButton>();
         word.enabled = true;
-        word.Setup(buttonTextColor, buttonHoverColor, hoverScale, hoverLetterSpacing, disabledAlpha);
+        word.Setup(buttonTextColor, buttonHoverColor, modernLook ? 1.03f : hoverScale, modernLook ? 3f : hoverLetterSpacing, disabledAlpha);
         // Only the text animates here. Disable the shared plate feedback and hide decorative graphics.
         var feedback = button.GetComponent<MenuButtonFeedback>();
         if (feedback != null) feedback.enabled = false;
@@ -210,6 +212,8 @@ public class TitleScreenManager : MonoBehaviour
         // The menu always needs a free mouse (the player scripts lock it for the camera)
         if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
         if (!Cursor.visible) Cursor.visible = true;
+
+        UpdateModernLook();
 
         // The EventSystem picks its First Selected in its own Start: clear it once more on the first frame
         if (!selectionCleared) { selectionCleared = true; ClearSelection(); }

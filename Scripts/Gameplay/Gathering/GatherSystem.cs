@@ -43,7 +43,7 @@ public class GatherSystem : MonoBehaviour
     private float lastGatherHealth;
 
     readonly List<GatherNode> candidates = new List<GatherNode>(64);
-    private GatherNode target;
+    private GatherNode target, emptyNode; // emptyNode: the nearest one already gathered (it says so instead of showing nothing)
     private bool gathering;
     private float progress;
 
@@ -106,6 +106,7 @@ public class GatherSystem : MonoBehaviour
             lootNearby = !unavailable && LootBagInRange();
             pickupNearby = !unavailable && PickupInRange();
             if (!gathering) target = unavailable ? null : FindNodeInRange();
+            emptyNode = !gathering && target == null && !unavailable ? FindEmptyInRange() : null;
             stationNearby = !unavailable && !gathering && StationCloserThan(target);
             targetVisible=target!=null && (!gathering || CanReachNode(target));
         }
@@ -116,7 +117,7 @@ public class GatherSystem : MonoBehaviour
 
         if (gathering)
         {
-            if (target == null || target.IsEmpty || blocked || hurt || !Input.GetKey(gatherKey) || MovementPressed() || !InRange(target)) StopGathering();
+            if (target == null || !target.Usable || blocked || hurt || !Input.GetKey(gatherKey) || MovementPressed() || !InRange(target)) StopGathering();
             else
             {
                 progress += Time.deltaTime;
@@ -126,7 +127,16 @@ public class GatherSystem : MonoBehaviour
         else if (target != null && !blocked && InRange(target) && pressed && !pickupNearby) StartGathering();
 
         bool showPrompt = target != null && !blocked && InRange(target);
-        promptObject.SetActive(showPrompt);
+        bool showEmpty = !showPrompt && !gathering && emptyNode != null && !emptyNode.Usable && InRange(emptyNode)
+            && !unavailable && !LootWindow.IsOpen && !lootNearby && !stationNearby;
+        promptObject.SetActive(showPrompt || showEmpty);
+        if (showEmpty)
+        {
+            float minutes = emptyNode.MinutesLeft;
+            string text = minutes < 0f ? "Nothing left here" : minutes < 1f ? "Gathered - back in a moment" : $"Gathered - back in {Mathf.CeilToInt(minutes)} min";
+            if (shownAction != text) { shownAction = text; promptText.text = $"<alpha=#99>{text}"; }
+            barObject.SetActive(false);
+        }
         if (showPrompt)
         {
             if (shownAction != target.actionName)
@@ -173,15 +183,23 @@ public class GatherSystem : MonoBehaviour
     void Complete()
     {
         GatherNode node = target;
-        if(CombatBlocksGathering || node==null || !node.isActiveAndEnabled || node.IsEmpty || player==null || WorldActivitySystem.Loading
+        if(CombatBlocksGathering || node==null || !node.isActiveAndEnabled || !node.Usable || player==null || WorldActivitySystem.Loading
             || PlayerRef.InputBlocked || !InRange(node) || !CanReachNode(node) || PlayerRef.Stats==null || PlayerRef.Stats.IsDead)
         {StopGathering();return;}
         StopGathering();
 
         List<KeyValuePair<PlayerItemData, int>> results = node.Harvest();
+        // A well: you drink your fill every time
+        bool drank = false;
+        if (node.quenchThirst && PlayerRef.Stats != null)
+        {
+            PlayerRef.Stats.currentThirst = PlayerRef.Stats.MaxThirst;
+            drank = true;
+            SoundManager.Play(Sfx.Drink, player.position + Vector3.up);
+        }
         if (results.Count == 0)
         {
-            ShowMessage("Found nothing");
+            ShowMessage(drank ? "Thirst quenched" : "Found nothing");
             return;
         }
 
@@ -200,7 +218,7 @@ public class GatherSystem : MonoBehaviour
             parts.Add($"+{result.Value} {(string.IsNullOrEmpty(result.Key.itemName) ? result.Key.name : result.Key.itemName)}");
         }
 
-        string message = string.Join("   ", parts);
+        string message = (drank ? "Thirst quenched   " : "") + string.Join("   ", parts);
         if (dropped) message += "\n<size=80%>Inventory full - dropped on the ground</size>";
         ShowMessage(message);
     }
@@ -213,10 +231,22 @@ public class GatherSystem : MonoBehaviour
         TerrainGatherables.CollectNear(player.position,candidates);
         foreach(var node in candidates)
         {
-            if(CombatBlocksGathering || node==null || !node.isActiveAndEnabled || node.IsEmpty || !InRange(node))continue;
+            if(CombatBlocksGathering || node==null || !node.isActiveAndEnabled || !node.Usable || !InRange(node))continue;
             float distance=(node.transform.position-player.position).sqrMagnitude;
             if(distance>nearest || (distance==nearest && found!=null && node.RegistrationOrder>=found.RegistrationOrder)
                 || !CanReachNode(node))continue;
+            nearest=distance;found=node;
+        }
+        return found;
+    }
+    GatherNode FindEmptyInRange()
+    {
+        GatherNode found=null;float nearest=float.MaxValue;
+        foreach(var node in candidates) // filled by FindNodeInRange this same scan
+        {
+            if(node==null || !node.isActiveAndEnabled || node.Usable || node.hideAllWhenEmpty || !InRange(node))continue;
+            float distance=(node.transform.position-player.position).sqrMagnitude;
+            if(distance>=nearest || !CanReachNode(node))continue;
             nearest=distance;found=node;
         }
         return found;
@@ -236,8 +266,15 @@ public class GatherSystem : MonoBehaviour
             var hit=reachHits[i];if(hit.transform.IsChildOf(player))continue;
             if(hit.collider is TerrainCollider)
             {
-                // Terrain gather points are proxies, not children of each painted tree collider.
-                if(terrain!=null && hit.collider.gameObject==terrain.gameObject && (hit.point-aim).sqrMagnitude<=.81f)continue;
+                // Terrain gather points are proxies, not children of each painted tree collider: a hit on the terrain collider
+                // right at the point is the painted tree itself (its trunk, however thick) or the ground at its foot.
+                // (Before, only hits within .9 m of the aim counted, so thick trunks and wide bushes hid their prompt.)
+                if(terrain!=null && hit.collider.gameObject==terrain.gameObject)
+                {
+                    Vector3 off=hit.point-node.transform.position;off.y=0;
+                    float own=Mathf.Max(1.6f,node.gatherRange);
+                    if(off.sqrMagnitude<=own*own)continue;
+                }
                 return false;
             }
             if(hit.transform.IsChildOf(owner) || node.transform.IsChildOf(hit.transform))continue;

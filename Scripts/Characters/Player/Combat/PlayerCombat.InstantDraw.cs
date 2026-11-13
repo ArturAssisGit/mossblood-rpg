@@ -63,7 +63,7 @@ public partial class PlayerCombat
 
     bool DealDamage(float multiplier, bool kick = false, float radiusScale = 1f, float arcDegrees = 150f, bool allowFinisher = true, bool playImpactSound = true, bool requireLineOfSight = true)
     {
-        float damage = (equipmentManager != null ? equipmentManager.CurrentWeaponDamage : 0f) * multiplier * ItemUpgrades.DamageMultiplier(stats);
+        float damage = (equipmentManager != null ? equipmentManager.CurrentWeaponDamage : 0f) * multiplier * ItemUpgrades.DamageMultiplier(stats) * TimedBuffs.DamageDealt;
         if (damage <= 0f) return false;
         float recoil=MeleeRecoil(kick); // keep one distance for every victim, even if a finisher interrupts this swing.
         int mask = enemyLayer.value != 0 ? enemyLayer.value : Physics.AllLayers;
@@ -77,6 +77,7 @@ public partial class PlayerCombat
         Vector3 sparkPoint = center;
         bool bladeContact=false;
         int actualContacts=0;
+        EnemyAI_01 killed=null; // the first enemy this cut killed (the blade may stay in it)
         int candidateCount = QueryCombatCandidates(center, attackRadius*Mathf.Clamp(radiusScale,1f,1.6f), mask);
         for (int i = 0; i < candidateCount; i++)
         {
@@ -96,12 +97,13 @@ public partial class PlayerCombat
                 }
                 continue;
             }
-            if (enemy.IsDead || !alreadyHit.Add(enemy)) continue;
+            if (enemy.IsDead || BattleCombatant.IsAlly(enemy) || !alreadyHit.Add(enemy)) continue; // your own ronin: the blade passes
             if(requireLineOfSight && !SpecialAssistVisible(enemy))continue;
             float healthBefore=enemy.CurrentHealth;
             PlayerFinisher.MeleeHit = allowFinisher; // ordinary swings retain their finisher; special sequences finish smoothly
             try { enemy.TakeDamage(damage, transform.position, recoil, impactDirection); }
             finally { PlayerFinisher.MeleeHit = false; }
+            if(killed==null && healthBefore>0f && enemy.IsDead && !enemy.isNetworkMirror)killed=enemy;
             if(enemy.CurrentHealth<healthBefore || enemy.isNetworkMirror)
             {
                 bladeContact=true;actualContacts++;
@@ -113,6 +115,7 @@ public partial class PlayerCombat
         if (bladeContact)
         {
             HitImpact(sparkPoint,impactDirection,multiplier);
+            if(!kick && allowFinisher)BladeWeight(killed,sparkPoint,impactDirection,multiplier); // the blade bites; a kill may keep it in
             if (!kick && playImpactSound) SoundManager.Play(Sfx.SwordHit, sparkPoint); // a kick only makes the enemy's hurt sound
             // Kitsune (Oni Stone): heal part of the damage dealt
             if (stats != null && ItemUpgrades.Active(OniSpirit.Kitsune)) stats.Heal(damage * ItemUpgrades.KitsuneLifeSteal * actualContacts);

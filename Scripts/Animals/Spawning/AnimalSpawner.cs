@@ -101,7 +101,7 @@ public class AnimalSpawner : MonoBehaviour
 
         Camera cam = useCameraRule && avoidCameraView ? Camera.main : null;
         float lo = Mathf.Min(spawnDistance.x, spawnDistance.y), hi = Mathf.Max(spawnDistance.x, spawnDistance.y);
-        int noGround = 0, steep = 0, low = 0, area = 0, safe = 0, seen = 0;
+        int noGround = 0, steep = 0, low = 0, area = 0, safe = 0, seen = 0, island = 0;
         Vector3 forward = AheadDirection();
 
         for (int attempt = 0; attempt < 20; attempt++)
@@ -117,6 +117,7 @@ public class AnimalSpawner : MonoBehaviour
             if (!InAnyArea(allowedAreas, ground)) { area++; continue; }
             if (NearAny(safePlaces, ground, safeRadius)) { safe++; continue; }
             if (cam != null && InView(cam, ground)) { seen++; continue; }
+            if (!WorldZone.SameIslandAsPlayer(ground)) { island++; continue; } // only on the island you are on
 
             int count = Random.Range(type.minGroup, Mathf.Max(type.minGroup, type.maxGroup) + 1);
             count = Mathf.Min(count, Mathf.Max(1, maxAnimals - alive.Count));
@@ -125,13 +126,13 @@ public class AnimalSpawner : MonoBehaviour
                 Vector2 off = i == 0 ? Vector2.zero : Random.insideUnitCircle * groupSpread;
                 Vector3 at = ground + new Vector3(off.x, 0f, off.y);
                 if (!Ground(at, out at, out float memberSlope) || memberSlope > maxSlope || at.y < minGroundY || !DryLand.IsDry(at)
-                    || !InAnyArea(allowedAreas, at) || NearAny(safePlaces, at, safeRadius) || (cam != null && InView(cam, at))) continue;
+                    || !InAnyArea(allowedAreas, at) || NearAny(safePlaces, at, safeRadius) || (cam != null && InView(cam, at)) || !WorldZone.SameIslandAsPlayer(at)) continue;
                 GameObject go = Instantiate(type.prefab, at, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
                 alive.Add(go);
             }
             return true;
         }
-        lastFailure = $"no good place in 20 tries: no ground {noGround}x, too steep {steep}x, too low {low}x, outside Allowed Areas {area}x, near a Safe Place {safe}x, in the camera view {seen}x.";
+        lastFailure = $"no good place in 20 tries: no ground {noGround}x, too steep {steep}x, too low {low}x, outside Allowed Areas {area}x, near a Safe Place {safe}x, in the camera view {seen}x, another / closed island {island}x.";
         return false;
     }
 
@@ -197,6 +198,8 @@ public class AnimalSpawner : MonoBehaviour
         {
             GameObject go = alive[i];
             if (go == null) { alive.RemoveAt(i); continue; }
+            // A dead animal's body stays a while (WorldCleanup removes it) but no longer counts as one of the living
+            if (go.GetComponent<IAnimalTarget>() is IAnimalTarget a && a.IsDead) { alive.RemoveAt(i); continue; }
             if (Flat(go.transform.position - player.position).sqrMagnitude > despawnDistance * despawnDistance)
             {
                 Destroy(go);

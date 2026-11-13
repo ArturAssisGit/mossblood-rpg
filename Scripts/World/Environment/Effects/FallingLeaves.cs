@@ -20,6 +20,8 @@ public partial class FallingLeaves : MonoBehaviour
 
     [Header("Amount")]
     [Tooltip("Leaves per second around you, always (also without rain)")] public float calmLeavesPerSecond = 12f;
+    // Every amount of leaves (falling, wind-blown and the carpet on the ground) times this: 0.9 = 10% fewer (Nov 2026)
+    public const float AmountScale = .9f;
     [Range(1f,2f)] public float treeFallAmount=1.5f;
     [Tooltip("How many times more leaves fall in full rain / storm")] public float rainMultiplier = 3f;
     [Tooltip("Leaves only fall from trees this close to the camera (meters)")] public float spawnRadius = 35f;
@@ -57,7 +59,7 @@ public partial class FallingLeaves : MonoBehaviour
     void ClearBuiltSystems()
     {
         foreach(var ps in systems)if(ps!=null){ps.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);ps.GetComponent<Renderer>().enabled=false;Destroy(ps.gameObject);}
-        systems.Clear();weatherTints.Clear();ClearBlossomState();
+        systems.Clear();weatherTints.Clear();ClearBlossomState();twigSystem=null;
         foreach(var mat in ownedMaterials)if(mat!=null)Destroy(mat);ownedMaterials.Clear();
         foreach(var tex in ownedTextures)if(tex!=null)Destroy(tex);ownedTextures.Clear();
     }
@@ -296,7 +298,7 @@ public partial class FallingLeaves : MonoBehaviour
         TickLocalWindLeaves(rain);TickGroundCarpet();UpdateLeafWalker();
 
         if (nearTrees.Count == 0) return;
-        float rate = calmLeavesPerSecond * Mathf.Clamp(treeFallAmount,1f,2f) * Mathf.Lerp(1f, Mathf.Max(1f, rainMultiplier), rain);
+        float rate = calmLeavesPerSecond * AmountScale * Mathf.Clamp(treeFallAmount,1f,2f) * Mathf.Lerp(1f, Mathf.Max(1f, rainMultiplier), rain);
         spawnBudget += rate * Time.deltaTime;
         int count = Mathf.Min(Mathf.FloorToInt(spawnBudget), 20);
         spawnBudget -= Mathf.FloorToInt(spawnBudget);
@@ -336,6 +338,8 @@ public partial class FallingLeaves : MonoBehaviour
 
     private readonly List<LeafWeatherTint> weatherTints=new();
     private ParticleSystem.Particle[] buffer;
+    const float FarLeafDistance = 20f;
+    Vector3 rangePlayer; bool rangeHasPlayer;
     private readonly List<Vector4> states = new(); // x = 1 on the ground
 
     void LateUpdate()
@@ -356,6 +360,11 @@ public partial class FallingLeaves : MonoBehaviour
         foreach(var tint in weatherTints)tint.Apply(weatherBrightness);
         localLeavesAlive = 0;
         int frameSlot = Time.frameCount;
+        // Read once per frame instead of once per leaf
+        Transform rangeOwner = PlayerRef.Transform;
+        rangeHasPlayer = rangeOwner != null; if (rangeHasPlayer) rangePlayer = rangeOwner.position;
+        Camera view = Camera.main;
+        bool hasView = view != null; Vector3 viewPos = hasView ? view.transform.position : Vector3.zero;
         foreach (ParticleSystem ps in systems)
         {
             bool isBlossom=ps==blossomSystem;
@@ -373,6 +382,7 @@ public partial class FallingLeaves : MonoBehaviour
                 if (UpdateTreeLeafRange(ref p)){buffer[i]=p;continue;}
                 if (UpdateLocalLeafRange(ref p)) { buffer[i] = p; continue; }
                 bool isLocalLeaf = (p.randomSeed & LocalLeafBit) != 0u;
+                bool isTwig = !isLocalLeaf && LeafMotionRules.IsTwig(p.randomSeed);
                 Vector4 state = states[i];
                 if(state.w<=0 && state.x<.5f)
                 {
@@ -401,13 +411,13 @@ public partial class FallingLeaves : MonoBehaviour
                     p.velocity = Vector3.zero;
                     p.angularVelocity3D = Vector3.zero;
                     if(TryKickLeaf(ref p)){state.x=0f;}
-                    float chance = gustLiftChance * gust * rainLift * (0.5f + windStrengthNow * 0.5f);
+                    float chance = gustLiftChance * gust * rainLift * (0.5f + windStrengthNow * 0.5f) * (isTwig ? .2f : 1f);
                     if (isLocalLeaf) chance += localLift;
                     if (state.x>.5f && Random.value < chance * stepDt)
                     {
                         state.x = 0f;
-                        float lift = LeafMotionRules.WindLift(rainNow,gust,Random.value);
-                        p.velocity = windDir * Mathf.Min(windStrengthNow * Random.Range(1f, 2f) + 0.5f, maxLeafWindSpeed * 1.3f) + Vector3.up * lift;
+                        float lift = LeafMotionRules.WindLift(rainNow,gust,Random.value) * (isTwig ? LeafMotionRules.TwigLift : 1f);
+                        p.velocity = (windDir * Mathf.Min(windStrengthNow * Random.Range(1f, 2f) + 0.5f, maxLeafWindSpeed * 1.3f)) * (isTwig ? LeafMotionRules.TwigWind : 1f) + Vector3.up * lift;
                         p.position = pos + Vector3.up * 0.05f;
                         p.angularVelocity3D = RandomSpin() * spinRate * 1.5f;
                     }
@@ -415,20 +425,31 @@ public partial class FallingLeaves : MonoBehaviour
                 else
                 {
                     // IN THE AIR: pushed by the wind, swinging, falling slowly
-                    Vector3 flutterV = new Vector3(Mathf.PerlinNoise(t * 0.9f + seed, 0.5f) - 0.5f, 0f, Mathf.PerlinNoise(0.5f, t * 0.9f + seed) - 0.5f) * 2f * flutterNow;
-                    Vector3 target = Vector3.ClampMagnitude(windNow * (0.8f + gust * 0.8f), maxLeafWindSpeed) + flutterV;
-                    target.y = -fall + Mathf.Sin(t * 2.3f + seed) * .22f * flutterNow;
+                    // A twig is heavier: it falls faster, the wind carries it less, it swings and spins less
+                    // Far from the camera (20 m+) the wind is worked out every other frame with twice the step: the same
+                    // flight, half the cost (the particle system keeps moving it with its last velocity in between)
+                    Vector3 fromView = pos - viewPos;
+                    bool farLeaf = hasView && fromView.sqrMagnitude > FarLeafDistance * FarLeafDistance;
+                    if (!farLeaf || ((i + frameSlot) & 1) == 0)
+                    {
+                    float airDt = farLeaf ? dt * 2f : dt;
+                    float flutterHere = isTwig ? flutterNow * LeafMotionRules.TwigFlutter : flutterNow;
+                    Vector3 flutterV = new Vector3(Mathf.PerlinNoise(t * 0.9f + seed, 0.5f) - 0.5f, 0f, Mathf.PerlinNoise(0.5f, t * 0.9f + seed) - 0.5f) * 2f * flutterHere;
+                    Vector3 target = Vector3.ClampMagnitude(windNow * (0.8f + gust * 0.8f), maxLeafWindSpeed) * (isTwig ? LeafMotionRules.TwigWind : 1f) + flutterV;
+                    target.y = -fall * (isTwig ? LeafMotionRules.TwigFall : 1f) + Mathf.Sin(t * 2.3f + seed) * .22f * flutterHere;
                     Vector3 v = p.velocity;
                     // Air drag towards the wind speed; upwards motion (after a gust) slows down quickly
-                    v=LeafMotionRules.AirVelocity(v,LeafMotionRules.AirCurrent(target,seed,t),3.6f,dt,-target.y);
+                    v=LeafMotionRules.AirVelocity(v,LeafMotionRules.AirCurrent(target,seed,t),isTwig ? 2.4f : 3.6f,airDt,-target.y);
                     p.velocity = v;
-                    if (p.angularVelocity3D.sqrMagnitude < 1f) p.angularVelocity3D = RandomSpin() * spinRate;
+                    if (p.angularVelocity3D.sqrMagnitude < 1f) p.angularVelocity3D = RandomSpin() * spinRate * (isTwig ? LeafMotionRules.TwigSpin : 1f);
+                    }
+                    Vector3 v2 = p.velocity;
 
                     // Landing
                     // Each falling leaf looks for the ground every 3rd frame (a third of the raycasts) with a 3x longer reach
-                    if ((landOnGround || isLocalLeaf || isBlossom) && v.y < 0.2f && (i + frameSlot) % 3 == 0)
+                    if ((landOnGround || isLocalLeaf || isBlossom) && v2.y < 0.2f && (i + frameSlot) % 3 == 0)
                     {
-                        float reach = Mathf.Max(0.15f, -v.y * dt * 6f + 0.08f);
+                        float reach = Mathf.Max(0.15f, -v2.y * dt * 6f + 0.08f);
                         if (Physics.Raycast(pos + Vector3.up * 0.25f, Vector3.down, out RaycastHit hit, reach + 0.25f, groundLayers, QueryTriggerInteraction.Ignore) && (!(isLocalLeaf || isBlossom) || !IgnoreLocalSurface(hit.collider)))
                         {
                             state.x = 1f;
@@ -443,6 +464,13 @@ public partial class FallingLeaves : MonoBehaviour
                             p.startLifetime=p.remainingLifetime=retained;
                             // Continue the same leaf in the existing floor pool, freeing an air slot.
                             if(!isLocalLeaf && SettleIntoGroundCarpet(p,isBlossom,state.w))p.remainingLifetime=0;
+                            else if(!isLocalLeaf)
+                            {
+                                // No ground patch took it: it lies here a shorter while, so the pool of falling leaves
+                                // is not filled up by leaves lying on the ground (that was why so few were falling)
+                                float stay=Random.Range(18f,30f);
+                                state.w=t+stay;p.startLifetime=p.remainingLifetime=stay;
+                            }
                         }
                     }
                 }
@@ -471,14 +499,17 @@ public partial class FallingLeaves : MonoBehaviour
 
         if(tree.flowering && blossomSystem!=null)
         {EmitBlossom(position,Vector3.down*.7f,Random.Range(.08f,.16f),LeafMotionRules.BlossomColor(tree.tint,Random.value),false,Vector3.up);return;}
-        ParticleSystem ps = systems[Random.Range(0, regularSystemCount)];
+        // Now and then a small twig breaks off with its leaves (heavier: see LateUpdate)
+        bool twig = twigSystem != null && Random.value < LeafMotionRules.TwigShareFalling;
+        ParticleSystem ps = twig ? twigSystem : systems[Random.Range(0, regularSystemCount)];
         if (ps.particleCount >= ps.main.maxParticles) return;
+        uint seed = (uint)Random.Range(1, 0x3FFFFFFF); // the two high bits mark local loose leaves and twigs
         var emit = new ParticleSystem.EmitParams
         {
             position = position,
-            randomSeed = (uint)Random.Range(1, int.MaxValue), // high bit is reserved for local loose leaves
+            randomSeed = twig ? seed | LeafMotionRules.TwigBit : seed,
             velocity = new Vector3(Random.Range(-0.3f, 0.3f), -0.2f, Random.Range(-0.3f, 0.3f)),
-            startSize = Random.Range(leafSize.x, Mathf.Max(leafSize.x, leafSize.y)),
+            startSize = Random.Range(leafSize.x, Mathf.Max(leafSize.x, leafSize.y)) * LeafMotionRules.LeafScale * (twig ? LeafMotionRules.TwigSize : 1f),
             startLifetime = TreeLeafLifetime(position,Random.Range(leafLifetime.x, Mathf.Max(leafLifetime.x, leafLifetime.y))),
             angularVelocity3D = RandomSpin() * spin,
             rotation3D = new Vector3(Random.Range(0f, 360f), Random.Range(0f, 360f), Random.Range(0f, 360f)),
@@ -504,6 +535,11 @@ public partial class FallingLeaves : MonoBehaviour
         if(states.Capacity<perSystem)states.Capacity=perSystem;
         foreach (Material mat in materials) systems.Add(CreateSystem(mat, perSystem));
         BuildBlossomSystem();
+        // After the leaves and petals: never picked as a leaf system (regularSystemCount), still simulated with them
+        twigSystem = CreateSystem(MakeMaterial(null), Mathf.Max(40, maxLeaves / 6), true);
+        twigSystem.gameObject.name = "Twigs";
+        systems.Add(twigSystem);
+        Debug.Log($"[Leaves] twigs ready ({twigSystem.main.maxParticles} at most, {LeafMotionRules.TwigShareFalling:P0} of what falls)");
     }
 
     Material MakeMaterial(Texture2D texture,bool blossom=false)
@@ -512,7 +548,9 @@ public partial class FallingLeaves : MonoBehaviour
         return LeafAppearance.Material(blossom);
     }
 
-    ParticleSystem CreateSystem(Material material, int max)
+    ParticleSystem twigSystem; // twigs with leaves: their own system (twig mesh), simulated with the leaves in LateUpdate
+
+    ParticleSystem CreateSystem(Material material, int max, bool twigMesh = false)
     {
         GameObject go = new GameObject("Leaves");
         go.transform.SetParent(transform, false);
@@ -544,7 +582,7 @@ public partial class FallingLeaves : MonoBehaviour
 
         var leafRenderer = go.GetComponent<ParticleSystemRenderer>();
         leafRenderer.renderMode = ParticleSystemRenderMode.Mesh;
-        leafRenderer.mesh = LeafAppearance.Mesh(false);
+        leafRenderer.mesh = twigMesh ? LeafAppearance.Twig() : LeafAppearance.Mesh(false);
         leafRenderer.alignment = ParticleSystemRenderSpace.World;
         leafRenderer.sharedMaterial = material;
         var weatherTint=new LeafWeatherTint(leafRenderer);

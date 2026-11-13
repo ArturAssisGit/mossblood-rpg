@@ -153,6 +153,8 @@ public static class AdventureProgress
         state.relics.Add(new RelicEntrySave { key = key, title = title ?? "Lost relic", lore = lore ?? "", stone = stone });
         QueueCoins(coins); Revision++; return true;
     }
+    // Coins paid into the inventory as soon as there is room (WorldActivitySystem), e.g. an arena purse
+    public static void AddPendingCoins(int coins) { if (coins <= 0) return; QueueCoins(coins); Revision++; }
     static void QueueCoins(int coins) => state.pendingCoins = (int)Math.Min(int.MaxValue, (long)state.pendingCoins + Math.Max(0, coins));
     public static void ConsumePendingCoins(int actualAdded)
     {

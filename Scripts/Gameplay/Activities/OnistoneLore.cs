@@ -7,7 +7,16 @@ using UnityEngine;
 // Relics (RelicDefinition) belong to one stone; finding every relic of a stone completes its chronicle and
 // reveals where that stone was last seen. NPCs (NpcLoreBook) each know part of the story.
 // The enum names are kept for save compatibility: Earth = Untiring, Water = Patient, Fire = Hungry, Wind = Sleepless, Void = Faceless.
-public enum Onistone { None, Earth, Water, Fire, Wind, Void }
+// Inspector dropdowns show each stone's name (the values and saves are unchanged)
+public enum Onistone
+{
+    None,
+    [InspectorName("Untiring Onistone (Earth) - zone IV")] Earth,
+    [InspectorName("Patient Onistone (Water) - zone III")] Water,
+    [InspectorName("Hungry Onistone (Fire) - zone II")] Fire,
+    [InspectorName("Sleepless Onistone (Wind) - zone I")] Wind,
+    [InspectorName("Faceless Onistone (Void) - zone V")] Void,
+}
 
 public static class OnistoneLore
 {

@@ -119,7 +119,9 @@ public static class Voices
         string name = NpcDialogue.NameOf(npc);
         name = string.IsNullOrEmpty(name) ? npc.name.ToLowerInvariant() : name.ToLowerInvariant();
         bool woman = false;
-        if (lib != null) foreach (string w in lib.womenNames) if (!string.IsNullOrEmpty(w) && name.Contains(w.ToLowerInvariant())) { woman = true; break; }
+        RoamingTraveler traveller = npc.GetComponent<RoamingTraveler>(); // travellers on the roads say it themselves
+        if (traveller != null) woman = traveller.female;
+        else if (lib != null) foreach (string w in lib.womenNames) if (!string.IsNullOrEmpty(w) && name.Contains(w.ToLowerInvariant())) { woman = true; break; }
         int seed = 0; foreach (char c in name) seed = seed * 31 + c;
         pitch = .95f + Mathf.Abs(seed % 9) * .012f;
         if (woman) return (seed & 1) == 0 ? VoiceId.FemaleA : VoiceId.FemaleB;

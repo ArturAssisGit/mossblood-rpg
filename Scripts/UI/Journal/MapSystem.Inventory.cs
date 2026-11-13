@@ -56,6 +56,10 @@ public partial class MapSystem
         // Tent, campfire and crafting table, all at once (closes the journal and plays the setting-up sequence)
         campButton = UIStyle.CreateButton(inventoryPage.transform, "SET UP CAMP", 36f, CampSystem.TrySetUp, 19f);
         UIKit.SetRect(campButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one, new Vector2(-250f, -39f), Vector2.zero);
+        // Organising: sort each bag by kind, and move everything between the inventory and the backpack
+        sortButton = InventoryButton("SORT", () => { var inv = PlayerInventoryManager.Instance; if (inv == null) return; inv.SortAll(); UISounds.Drop(); ItemTooltip.Hide(); }, -380f, -260f);
+        storeAllButton = InventoryButton("STORE ALL", () => TransferAll(true), -560f, -390f);
+        takeAllButton = InventoryButton("TAKE ALL", () => TransferAll(false), -730f, -570f);
         // A framed card under the equipment and bags: soft shadow, dark lacquer, thin gold rim (like the map window)
         // The bags lie on a torn sheet of dark paper, like the journal's other pages
         var card = UIKit.CreateImage("InventoryCard", inventoryPage.transform, Color.white, null).GetComponent<Image>();
@@ -77,12 +81,38 @@ public partial class MapSystem
         pillRect.anchorMin = pillRect.anchorMax = pillRect.pivot = new Vector2(0.5f, 0f);
         pillRect.anchoredPosition = new Vector2(0f, 2f); pillRect.sizeDelta = new Vector2(980f, 32f);
         var help = UIKit.CreateText("InventoryHelp", pillRect,
-            "Click  equip / select   ·   Click again  confirm use   ·   Right-click  drop   ·   Drag  move   ·   B  stow cape", 18f, UIStyle.Cream, UIStyle.Font);
+            "Click  equip / select   ·   Click again  confirm use   ·   Right-click  drop   ·   Drag  move   ·   Ctrl + click  to the other bag   ·   B  stow cape", 18f, UIStyle.Cream, UIStyle.Font);
         help.enableAutoSizing = true; help.fontSizeMin = 12f; help.fontSizeMax = 18f;
         UIKit.SetRect(help.rectTransform, Vector2.zero, Vector2.one, new Vector2(18f, 3f), new Vector2(-18f, -3f));
     }
 
-    private Button campButton;
+    private Button campButton, sortButton, storeAllButton, takeAllButton;
+
+    // A small button in the top row of the page, between the given distances from the right edge
+    Button InventoryButton(string label, UnityEngine.Events.UnityAction action, float left, float right)
+    {
+        Button b = UIStyle.CreateButton(inventoryPage.transform, label, 36f, action, 19f);
+        UIKit.SetRect(b.GetComponent<RectTransform>(), Vector2.one, Vector2.one, new Vector2(left, -39f), new Vector2(right, 0f));
+        return b;
+    }
+
+    static void TransferAll(bool toBackpack)
+    {
+        var inv = PlayerInventoryManager.Instance;
+        if (inv == null) return;
+        ItemTooltip.Hide();
+        if (inv.TransferAll(toBackpack) > 0) UISounds.Drop(); else UISounds.Error();
+    }
+
+    // STORE ALL / TAKE ALL only with a backpack on
+    void RefreshInventoryButtons()
+    {
+        var inv = PlayerInventoryManager.Instance;
+        bool bag = inv != null && inv.HasBackpackStorage;
+        if (storeAllButton != null && storeAllButton.interactable != bag) storeAllButton.interactable = bag;
+        if (takeAllButton != null && takeAllButton.interactable != bag) takeAllButton.interactable = bag;
+        if (sortButton != null && sortButton.interactable != (inv != null)) sortButton.interactable = inv != null;
+    }
 
     // "Move camp here" once a camp stands somewhere
     void RefreshCampButton()

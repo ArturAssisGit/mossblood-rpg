@@ -143,17 +143,21 @@ public class PlacementSystem : MonoBehaviour
         Vector3 center = new Vector3(bounds.center.x, bounds.min.y + groundMargin + height * 0.5f, bounds.center.z);
         Vector3 half = new Vector3(bounds.extents.x * 0.9f, height * 0.5f, bounds.extents.z * 0.9f);
 
-        foreach (Collider c in Physics.OverlapBox(center, half, Quaternion.identity, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-            if (!(c is TerrainCollider)) return true;
+        Collider[] found = WorldUtil.ColliderBuffer; // every frame while placing: no new array
+        int count = Physics.OverlapBoxNonAlloc(center, half, found, Quaternion.identity, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
+            if (!(found[i] is TerrainCollider)) return true;
         return false;
     }
 
     bool RaycastIgnoringPlayer(Ray ray, float distance, out RaycastHit result)
     {
-        RaycastHit[] hits = Physics.RaycastAll(ray, distance, Physics.AllLayers, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (RaycastHit hit in hits)
+        RaycastHit[] hits = WorldUtil.HitBuffer;
+        int count = Physics.RaycastNonAlloc(ray, hits, distance, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+        WorldUtil.SortHits(hits, count);
+        for (int i = 0; i < count; i++)
         {
+            RaycastHit hit = hits[i];
             if (hit.collider.transform.IsChildOf(player)) continue;
             result = hit;
             return true;

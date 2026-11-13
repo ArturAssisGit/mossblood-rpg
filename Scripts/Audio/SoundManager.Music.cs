@@ -71,7 +71,7 @@ public partial class SoundManager
     };
 
     bool InBossEncounter() => !TitleScreenManager.IsOpen && PlayerRef.Stats != null && !PlayerRef.Stats.IsDead
-        && (BossEncounterDirector.IsIntroducing || BossEncounterDirector.ActiveBoss != null);
+        && (BossEncounterDirector.IsIntroducing || BossEncounterDirector.ActiveBoss != null || RoninArena.InDuel || BattleField.InWar);
 
     void UpdateMusic()
     {

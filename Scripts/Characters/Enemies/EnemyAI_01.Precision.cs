@@ -53,7 +53,7 @@ public partial class EnemyAI_01
         if(kind==PrecisionAction.Riposte)return WorldInteraction.SameActor(actor,riposteVictim) && Time.time<riposteUntil
             && (sequence<0 || sequence==riposteSequence);
         if(!precisionWindup || !WorldInteraction.SameActor(actor,precisionVictim) || (sequence>=0 && sequence!=precisionSequence))return false;
-        return kind==PrecisionAction.Guard?PrecisionCombatRules.GuardTiming(Time.time,precisionContact)
+        return kind==PrecisionAction.Guard?PrecisionCombatRules.GuardTiming(Time.time,precisionBegan,precisionContact)
             :PrecisionCombatRules.CounterWindow(Time.time,precisionBegan,precisionContact);
     }
     public bool PrecisionReach(Transform actor)

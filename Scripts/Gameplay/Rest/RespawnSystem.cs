@@ -122,9 +122,27 @@ public class RespawnSystem : MonoBehaviour
         PlayerEquipmentManager gear = PlayerEquipmentManager.Instance;
         if (gear != null && gear.IsInventoryOpen) gear.ToggleEquipment();
         if (PlacementSystem.Instance != null) PlacementSystem.Instance.Cancel();
+        CloseOpenWindows();
 
-        if (BossEncounterDirector.TryCaptureRestart(out var restart)) StartCoroutine(BossRestart(stats, restart));
+        if (!BattleField.InWar && BossEncounterDirector.TryCaptureRestart(out var restart)) StartCoroutine(BossRestart(stats, restart));
         else StartCoroutine(ShowDeathScreen());
+    }
+
+    // The game never pauses for these windows: falling with one open would leave it over the death screen
+    static void CloseOpenWindows()
+    {
+        MapSystem.CloseJournal();
+        LootWindow.CloseIfOpen();
+        ShopWindow.CloseIfOpen();
+        CraftingWindow.CloseIfOpen();
+        StableWindow.CloseIfOpen();
+        VillageRequestWindow.CloseIfOpen();
+        ArenaWindow.CloseIfOpen();
+        BattleWindow.CloseIfOpen();
+        DeliverySystem.CloseIfOpen();
+        NpcDialogue.EndConversation();
+        if (MenuWindow.Current != null && MenuWindow.Current.Showing) MenuWindow.Current.Hide(false);
+        ItemTooltip.Hide();
     }
 
     IEnumerator BossRestart(PlayerStats owner, BossEncounterDirector.RestartTicket restart)
@@ -155,7 +173,10 @@ public class RespawnSystem : MonoBehaviour
 
     IEnumerator ShowDeathScreen()
     {
+        PlayerStats owner = deadStats;
         yield return new WaitForSeconds(deathScreenDelay);
+        while (BattleField.InWar && owner != null && owner == deadStats && owner.IsDead) yield return null;
+        if (owner == null || owner != deadStats || !owner.IsDead) yield break;
 
         deathScreenOpen = true;
         tentButton.SetActive(TentAvailable());
@@ -255,10 +276,12 @@ public class RespawnSystem : MonoBehaviour
     // Raycasts down from 'from' and returns the first ground hit (ignores the player and triggers)
     public static bool FindGround(Vector3 from, out Vector3 ground)
     {
-        RaycastHit[] hits = Physics.RaycastAll(from, Vector3.down, 200f, Physics.AllLayers, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (RaycastHit hit in hits)
+        RaycastHit[] hits = WorldUtil.HitBuffer; // no new array per call (horse calling, tents and the camp camera ask often)
+        int count = Physics.RaycastNonAlloc(from, Vector3.down, hits, 200f, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+        WorldUtil.SortHits(hits, count);
+        for (int i = 0; i < count; i++)
         {
+            RaycastHit hit = hits[i];
             if (hit.collider.CompareTag("Player") || hit.collider.GetComponentInParent<CharacterController>() != null) continue;
             if (Vector3.Angle(hit.normal, Vector3.up) > 45f) continue;
             ground = hit.point;

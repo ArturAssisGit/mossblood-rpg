@@ -36,6 +36,8 @@ public partial class PlayerProceduralAnimation
                 spine.rotation = Quaternion.AngleAxis(slowWalkTorsoTwist, Vector3.up) * spine.rotation;
         }
         UpdateBackpackSway(dt);
+        UpdateKatanaHold(dt); // last: the left arm on the sheathed katana, over everything else
+        UpdateDrawnKatanaGrip(dt); // the left hand on the drawn katana's handle (combat idle)
     }
 
     // Bone rotations of the life layer (after the animation, on top of it)

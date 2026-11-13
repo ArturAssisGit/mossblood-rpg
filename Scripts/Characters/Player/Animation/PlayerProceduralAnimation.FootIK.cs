@@ -85,7 +85,8 @@ public partial class PlayerProceduralAnimation
 
         // Hands touch nearby walls (only unarmed and walking)
         bool handsActive = handOnWalls && Grounded && !IsDead && !DodgingOrSliding && velocity.magnitude <= maxWallSpeed && (combat == null || !combat.IsArmed);
-        UpdateHand(AvatarIKGoal.LeftHand, HumanBodyBones.LeftUpperArm, -transform.right, handsActive, true, ref leftHandWeight, ref leftHandTarget, ref leftHandRotation);
+        // (the left hand prefers the katana while it is held: it only reaches for a wall once it has let go)
+        UpdateHand(AvatarIKGoal.LeftHand, HumanBodyBones.LeftUpperArm, -transform.right, handsActive && katanaHold < 0.5f, true, ref leftHandWeight, ref leftHandTarget, ref leftHandRotation);
         UpdateHand(AvatarIKGoal.RightHand, HumanBodyBones.RightUpperArm, transform.right, handsActive, false, ref rightHandWeight, ref rightHandTarget, ref rightHandRotation);
         ApplySlopeWalkHands();
     }

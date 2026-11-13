@@ -134,9 +134,13 @@ public partial class PlayerEquipmentManager : MonoBehaviour
     public bool HasCapeEquipped => capeSlotUI != null && capeSlotUI.itemData != null && capeSlotUI.itemData.type == ItemType.Cape;
     public bool HasBackpackEquipped => backpackSlotUI != null && backpackSlotUI.itemData != null;
     public bool HasBackpackPerk(BackpackPerk perk) => HasBackpackEquipped && backpackSlotUI.itemData.backpackPerks != null && backpackSlotUI.itemData.backpackPerks.Contains(perk);
-    public static bool PerkActive(BackpackPerk perk) => Instance != null && Instance.HasBackpackPerk(perk);
-    // Multiply any money the player gains by this
-    public float MoneyMultiplier => HasBackpackPerk(BackpackPerk.DoubleMoney) ? 2f : 1f;
+    // A backpack perk - or the same luck from a Maneki-neko Charm (ItemEffects)
+    public static bool PerkActive(BackpackPerk perk) => (Instance != null && Instance.HasBackpackPerk(perk)) || (perk == BackpackPerk.LuckyFind && TimedBuffs.Lucky);
+    // Multiply any money the player gains by this (the Double Money backpack, or a Golden Koban for a while)
+    public float MoneyMultiplier => Mathf.Max(HasBackpackPerk(BackpackPerk.DoubleMoney) ? 2f : 1f, TimedBuffs.MoneyGain);
+    // RENOWN: % more honor from fights in the Ronin League, from everything worn (capes and hats carry it)
+    public float TotalRenown => SlotRenown(capeSlotUI) + SlotRenown(helmetSlotUI) + SlotRenown(chestSlotUI) + SlotRenown(weaponSlotUI) + SlotRenown(bowSlotUI);
+    static float SlotRenown(PlayerItemSlot slot) => slot != null && slot.itemData != null ? Mathf.Max(0f, slot.itemData.renownPercent) : 0f;
     public float CurrentBowDamage => currentBowData != null ? currentBowData.weaponDamage : 0f;
     public Transform BowTransform => currentBowObject != null ? currentBowObject.transform : null;
     public GameObject CurrentBackpackObject => currentBackpackObject;
@@ -238,11 +242,17 @@ public partial class PlayerEquipmentManager : MonoBehaviour
     public void ToggleCape()
     {
         if (!HasCapeEquipped) return;
-        capeStowed = !capeStowed;
-        ApplyCapeStowed();
+        SetCapeStowed(!capeStowed);
         PlayEquipSound();
         CenterMessage.Show(capeStowed ? $"Cape stowed. Press {toggleCapeKey} to wear it" : "Cape on");
-        if (PlayerRef.Stats != null) PlayerRef.Stats.RefreshBodyTemperature();
+    }
+
+    internal void SetCapeStowed(bool stowed)
+    {
+        capeStowed = stowed && HasCapeEquipped;
+        ApplyCapeStowed();
+        var stats = PlayerRef.Stats;
+        if (stats != null) stats.RefreshBodyTemperature();
     }
 
     void ApplyCapeStowed()

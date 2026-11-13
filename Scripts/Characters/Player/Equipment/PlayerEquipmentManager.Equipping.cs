@@ -135,6 +135,19 @@ public partial class PlayerEquipmentManager
         }
 
         float warmth=itemData.warmthSeconds*HatPassives.Bonus(playerStats,HatPassive.StrongerConsumables);
+        // Special effects (ItemEffects): the effect decides if it can be used; food / water / warmth come with it
+        if (itemData.HasEffect)
+        {
+            if (!ItemEffects.TryUse(itemData, playerStats, out string effectMessage)) { GameplayHint.Show(effectMessage ?? "This item would have no effect right now"); return false; }
+            if (RuntimeValues.IsFinite(itemData.foodRestore) && itemData.foodRestore > 0f) playerStats.Eat(itemData.foodRestore * HatPassives.Bonus(playerStats,HatPassive.StrongerConsumables));
+            if (RuntimeValues.IsFinite(itemData.waterRestore) && itemData.waterRestore > 0f) playerStats.Drink(itemData.waterRestore * HatPassives.Bonus(playerStats,HatPassive.StrongerConsumables));
+            if (RuntimeValues.IsFinite(warmth) && warmth > 0) playerStats.WarmBody(warmth);
+            if (itemData.stopsBleeding && playerStats.StopBleeding()) effectMessage = "Bleeding stopped. " + effectMessage;
+            slot.RemoveOne();
+            if (!string.IsNullOrEmpty(effectMessage)) GameplayHint.Show(effectMessage, 2.6f);
+            SoundManager.Play(itemData.waterRestore > itemData.foodRestore ? Sfx.Drink : Sfx.UseItem, SoundPosition());
+            return true;
+        }
         bool specialBenefit=(itemData.stopsBleeding && playerStats.IsBleeding) || playerStats.CanExtendWarmth(warmth);
         if (!specialBenefit && !ConsumableUseRules.HasBenefit(itemData.foodRestore, itemData.waterRestore, 0f,
             playerStats.currentHunger, playerStats.MaxHunger, playerStats.currentThirst, playerStats.MaxThirst,

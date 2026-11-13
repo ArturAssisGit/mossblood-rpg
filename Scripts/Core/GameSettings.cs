@@ -13,13 +13,16 @@ public static class GameSettings
     // ---------- Gameplay ----------
     public static bool CameraShake { get => GetB("set.cameraShake", true); set => SetB("set.cameraShake", value); }
     public static bool ScenicBars { get => GetB("set.scenicBars", true); set => SetB("set.scenicBars", value); }
+    // Riding into a wide open field turns the Scenic View on by itself
+    public static bool AutoScenicOnHorse { get => GetB("set.autoScenicHorse", true); set => SetB("set.autoScenicHorse", value); }
     // Minutes between autosaves (0 = off, -1 = the value set in the WorldSaveGameManager Inspector)
     public static int AutosaveMinutes { get => PlayerPrefs.GetInt("set.autosaveMinutes", -1); set => SetI("set.autosaveMinutes", value); }
 
     // ---------- Video ----------
     // Field of view of the camera (0 = the camera's own value)
     public static float Fov { get => GetF("set.fov", 0f); set => SetF("set.fov", value); }
-    public static bool VSync { get => GetB("set.vsync", QualitySettings.vSyncCount > 0); set { SetB("set.vsync", value); ApplyVideo(); } }
+    // On by default: the frame rate follows the screen (no hundreds of frames a second in menus, no tearing). Off in Settings
+    public static bool VSync { get => GetB("set.vsync", true); set { SetB("set.vsync", value); ApplyVideo(); } }
     // 0 = no limit
     public static int FpsLimit { get => PlayerPrefs.GetInt("set.fpsLimit", 0); set { SetI("set.fpsLimit", value); ApplyVideo(); } }
     public static int Quality
@@ -67,6 +70,12 @@ public static class GameSettings
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void ApplyOnStart()
     {
+        // A released game: ordinary messages and warnings go to the log without a stack trace (much cheaper; errors keep theirs)
+        if (!Application.isEditor && !Debug.isDebugBuild)
+        {
+            Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+            Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
+        }
         if (PlayerPrefs.HasKey("set.quality")) ApplyQuality();
         else ApplyVideo();
         if (PlayerPrefs.HasKey("set.resWidth") && !Application.isEditor)
@@ -83,7 +92,7 @@ public static class GameSettings
 
     static void ApplyVideo()
     {
-        if (PlayerPrefs.HasKey("set.vsync")) QualitySettings.vSyncCount = GetB("set.vsync", true) ? 1 : 0;
+        QualitySettings.vSyncCount = GetB("set.vsync", true) ? 1 : 0;
         int fps = PlayerPrefs.GetInt("set.fpsLimit", 0);
         Application.targetFrameRate = fps > 0 ? fps : -1;
     }

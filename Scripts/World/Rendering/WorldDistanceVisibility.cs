@@ -23,7 +23,12 @@ public class WorldDistanceVisibility : MonoBehaviour
         public float distance;
         public WorldVisibilityOverride settings;
         public bool hidden;
+        public Bounds bounds;   // cached: scenery doesn't move; refreshed every few checks (a dropped bag that rolls is caught soon)
+        public int boundsAge;
     }
+    const int BoundsRefreshChecks = 8;     // ~1.6 s at the default interval
+    const int RenderersPerFrame = 250;     // discovery: at most this many renderers inspected per frame (big zones no longer spike)
+    int pendingIndex;                      // next renderer of discoveryRenderers to inspect
     readonly List<Entry> entries = new List<Entry>();
     readonly HashSet<MeshRenderer> registered = new HashSet<MeshRenderer>();
     // Renderers judged "not ours" (player, characters, UI, water...) are remembered, never inspected again
@@ -58,22 +63,35 @@ public class WorldDistanceVisibility : MonoBehaviour
     void OnEnable() { SceneManager.sceneLoaded += SceneLoaded; nextDiscovery = 0f; }
     void OnDisable() { SceneManager.sceneLoaded -= SceneLoaded; Restore(); }
     void OnDestroy() { Restore(); if (Instance == this) Instance = null; }
-    void SceneLoaded(Scene scene, LoadSceneMode mode) { nextDiscovery = 0f; rejected.Clear(); discoveryQueue.Clear(); }
+    void SceneLoaded(Scene scene, LoadSceneMode mode) { nextDiscovery = 0f; rejected.Clear(); discoveryQueue.Clear(); discoveryRenderers.Clear(); pendingIndex = 0; }
 
     void LateUpdate()
     {
         Transform player = PlayerRef.Transform;
         // The map's overview camera must still see the whole landscape.
         if (player == null || TitleScreenManager.IsOpen || MapSystem.IsMapOpen) { Restore(); return; }
-        if (discoveryQueue.Count == 0 && Time.unscaledTime >= nextDiscovery)
+        if (discoveryQueue.Count == 0 && pendingIndex >= discoveryRenderers.Count && Time.unscaledTime >= nextDiscovery)
         {
             QueueDiscovery();
             nextDiscovery = Time.unscaledTime + discoveryInterval;
         }
-        for (int r = 0; r < RootsPerFrame && discoveryQueue.Count > 0; r++)
+        // A budget of renderers per frame (a whole zone root could hold thousands): the rest continues next frame
+        int inspected = 0;
+        for (int r = 0; r < RootsPerFrame && inspected < RenderersPerFrame; r++)
         {
-            GameObject root = discoveryQueue.Dequeue();
-            if (root != null) DiscoverRoot(root);
+            if (pendingIndex >= discoveryRenderers.Count)
+            {
+                discoveryRenderers.Clear(); pendingIndex = 0;
+                if (discoveryQueue.Count == 0) break;
+                GameObject root = discoveryQueue.Dequeue();
+                if (root == null || !root.activeInHierarchy) continue;
+                root.GetComponentsInChildren(false, discoveryRenderers);
+            }
+            while (pendingIndex < discoveryRenderers.Count && inspected < RenderersPerFrame)
+            {
+                Consider(discoveryRenderers[pendingIndex++]);
+                inspected++;
+            }
         }
 
         // Every renderer is still checked once per Check Interval, but a slice per frame instead of all at once
@@ -98,7 +116,8 @@ public class WorldDistanceVisibility : MonoBehaviour
             bool protectedObject = entry.renderer.transform.IsChildOf(player)
                 || (entry.settings != null && entry.settings.alwaysVisible);
             float distance = entry.settings != null ? entry.settings.distance : entry.distance;
-            bool hide = !protectedObject && ShouldHide(VisibilityBounds(entry.renderer,entry.lod), reference, distance, hysteresis, entry.hidden);
+            if (entry.boundsAge-- <= 0) { entry.bounds = VisibilityBounds(entry.renderer, entry.lod); entry.boundsAge = BoundsRefreshChecks; }
+            bool hide = !protectedObject && ShouldHide(entry.bounds, reference, distance, hysteresis, entry.hidden);
             SetHidden(entry, hide);
         }
     }
@@ -137,20 +156,23 @@ public class WorldDistanceVisibility : MonoBehaviour
     {
         {
             if(!root.activeInHierarchy) return;
-            discoveryRenderers.Clear(); root.GetComponentsInChildren(false,discoveryRenderers);
-            foreach(MeshRenderer renderer in discoveryRenderers)
-            {
-            if(renderer == null || !renderer.gameObject.activeInHierarchy) continue;
-            if (registered.Contains(renderer) || rejected.Contains(renderer) || !renderer.gameObject.scene.IsValid()) continue;
-            var settings = renderer.GetComponentInParent<WorldVisibilityOverride>();
-            if (settings == null && IsProtected(renderer)) { rejected.Add(renderer); continue; }
-            // Hidden cloth proxies and other renderers owned by a different system must stay hidden.
-            if (renderer.forceRenderingOff) continue;
-            registered.Add(renderer);
-            LODGroup lod=renderer.GetComponentInParent<LODGroup>();
-            entries.Add(new Entry { renderer = renderer, lod=lod, settings = settings, distance = SelectDistance(renderer,lod) });
-            }
+            var all = new List<MeshRenderer>(); root.GetComponentsInChildren(false, all); // the full scan (menu command): its own list
+            foreach (MeshRenderer renderer in all) Consider(renderer);
         }
+    }
+
+    // One renderer: registered (tracked), rejected (not ours) or skipped
+    void Consider(MeshRenderer renderer)
+    {
+        if (renderer == null || !renderer.gameObject.activeInHierarchy) return;
+        if (registered.Contains(renderer) || rejected.Contains(renderer) || !renderer.gameObject.scene.IsValid()) return;
+        var settings = renderer.GetComponentInParent<WorldVisibilityOverride>();
+        if (settings == null && IsProtected(renderer)) { rejected.Add(renderer); return; }
+        // Hidden cloth proxies and other renderers owned by a different system must stay hidden.
+        if (renderer.forceRenderingOff) return;
+        registered.Add(renderer);
+        LODGroup lod = renderer.GetComponentInParent<LODGroup>();
+        entries.Add(new Entry { renderer = renderer, lod = lod, settings = settings, distance = SelectDistance(renderer, lod), bounds = VisibilityBounds(renderer, lod), boundsAge = BoundsRefreshChecks });
     }
 
     public static bool IsProtected(MeshRenderer renderer)

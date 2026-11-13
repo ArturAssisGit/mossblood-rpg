@@ -86,7 +86,7 @@ public partial class WorldSaveGameManager
             if (PlayerEquipmentManager.Instance != null) PlayerEquipmentManager.Instance.ReconcileLocalEquipment(player.transform);
         }
         if (data != null) ApplySave(data);
-        else if (player != null) { MoveToSpawnPoint(player.transform); SeasonSystem.RestoreSave(0f); GiveStartingGear(); StartRainIfWanted(); StartSeatedIfWanted(); CampStartPoint.PitchForNewGame(); HorseOwnership.Restore(null); ItemPickup.Restore(null); MapSystem.ResetExplored(); NpcDialogue.RestoreDiscovered(null); ShrineSystem.RestoreDiscovered(null); DiaryProgress.Restore(null); RecipeKnowledge.Restore(null); WorldActivitySystem.Restore(null); }
+        else if (player != null) { MoveToSpawnPoint(player.transform); SeasonSystem.RestoreSave(0f); GiveStartingGear(); StartRainIfWanted(); StartSeatedIfWanted(); CampStartPoint.PitchForNewGame(); HorseOwnership.Restore(null); ItemPickup.Restore(null); MapSystem.ResetExplored(); NpcDialogue.RestoreDiscovered(null); ShrineSystem.RestoreDiscovered(null); DiaryProgress.Restore(null); RoninLeague.Restore(null); ArmySystem.Restore(null); ExpeditionSystem.Restore(null); TimedBuffs.Clear(); RecipeKnowledge.Restore(null); WorldActivitySystem.Restore(null); }
 
         ResetAutosaveTimer();
         IsLoading = false;
@@ -143,5 +143,9 @@ public partial class WorldSaveGameManager
             }
         }
         finally { SoundManager.Muted = wasMuted; }
+        // A few coins to start the road with
+        PlayerItemData coin = ItemDatabase.Find("coins");
+        if (coin != null && startingCoins > 0 && inv.AddItem(coin, startingCoins) < startingCoins)
+            Debug.LogWarning("New Game: not every starting coin fit in the inventory.");
     }
 }

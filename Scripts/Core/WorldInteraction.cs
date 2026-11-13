@@ -21,7 +21,7 @@ public static class WorldInteraction
         var gear = PlayerEquipmentManager.Instance;
         return actor != null && actor.gameObject.activeInHierarchy && SameActor(actor, PlayerRef.Transform)
             && stats != null && !stats.IsDead && Time.timeScale > 0f && !WorldActivitySystem.Loading
-            && !TitleScreenManager.IsOpen && !PauseMenu.IsOpen && (!MenuWindow.AnyOpen || VillageRequestWindow.IsOpen)
+            && !TitleScreenManager.IsOpen && !PauseMenu.IsOpen && (!MenuWindow.AnyOpen || VillageRequestWindow.IsOpen || ArenaWindow.IsOpen || BattleWindow.IsOpen)
             && !MapSystem.IsMapOpen && !ScreenFade.IsActive && !RespawnSystem.IsDeathScreenOpen
             && !SleepSystem.IsSleeping && !CampSystem.CinematicActive && !MultiplayerSession.PanelOpen && !PlacementSystem.IsPlacing
             && !HorseMount.PlayerMounted && !PlayerDodge.IsDodging && !PlayerFinisher.IsActive

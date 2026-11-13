@@ -31,6 +31,8 @@ public partial class NpcDialogue
         NpcTalk talk = npc.GetComponent<NpcTalk>();
         string[] lines = talk != null && talk.greetings != null && talk.greetings.Length > 0 ? talk.greetings : defaultGreetings;
         greeting = lines != null && lines.Length > 0 ? lines[UnityEngine.Random.Range(0, lines.Length)] : "";
+        BattleGeneral general = go.GetComponent<BattleGeneral>();
+        if (general != null) greeting = general.Greeting(); // where the next war stands ("come back in 2 days")
         // Someone who gave you a request asks about it first
         var request = AdventureProgress.Active;
         if (request != null && request.giverKey == WorldActivitySystem.GiverKey(go))
@@ -88,6 +90,33 @@ public partial class NpcDialogue
     {
         options.Clear();
         GameObject current = npc;
+        // The arena keeper only talks about the arena
+        ArenaMaster arena = current.GetComponent<ArenaMaster>();
+        if (arena != null)
+        {
+            AddOption("Ronin Arena", () => OpenWindow(() => ArenaWindow.OpenFor(arena)), RoninArena.InDuel ? "A duel is on" : "Challenge a ronin");
+            AddOption("What is the Ronin Arena?", () => ShowMenu(arena.explanation));
+            AddOption("Goodbye", () => End(false));
+            mode = Mode.Menu;
+            selected = 0;
+            ShowConversation(line);
+            return;
+        }
+        // The general only talks about the war
+        BattleGeneral general = current.GetComponent<BattleGeneral>();
+        if (general != null)
+        {
+            string note = BattleField.InWar ? "A battle is on"
+                : ArmySystem.WarRestLeft > 0f ? "In " + ArmySystem.DaysText(ArmySystem.WarRestLeft)
+                : ArmySystem.ReadyCount < ArmySystem.MinForWar ? $"{ArmySystem.ReadyCount}/{ArmySystem.MinForWar} ronin" : "Ready to march";
+            AddOption("Battle", () => OpenWindow(() => BattleWindow.OpenFor(general)), note);
+            AddOption("What is the battle?", () => ShowMenu(general.HowItWorks));
+            AddOption("Goodbye", () => End(false));
+            mode = Mode.Menu;
+            selected = 0;
+            ShowConversation(line);
+            return;
+        }
         // The main quest first: what they know about the land (the Onistone story)
         AddOption("Ask About the Land", () => ShowLore("What do you want to know?"));
         ShopNpc shop = current.GetComponent<ShopNpc>();

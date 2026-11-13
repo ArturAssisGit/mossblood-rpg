@@ -63,6 +63,7 @@ public partial class NpcDialogue
         PlayerEquipmentManager gear = PlayerEquipmentManager.Instance;
         if ((gear != null && gear.IsOpen) || PlacementSystem.IsPlacing || RespawnSystem.IsDeathScreenOpen || MapSystem.IsMapOpen) return false;
         if (ScreenFade.IsActive || HorseMount.PlayerMounted || DeliverySystem.IsDialogOpen || PlayerFinisher.IsActive) return false;
+        if (RoninArena.InDuel || BattleField.InWar) return false; // no talking (or travelling with an NPC) in the middle of a duel or a battle
         PlayerStats stats = PlayerRef.Stats;
         if (stats != null && stats.IsDead) return false;
         // Loot bags use E too: they win

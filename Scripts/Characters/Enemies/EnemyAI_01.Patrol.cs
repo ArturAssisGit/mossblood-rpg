@@ -77,7 +77,7 @@ public partial class EnemyAI_01
     }
 
     // Only called while player == null
-    void FindPlayer() => PlayerRef.Find(ref player);
+    void FindPlayer() { if (battle != null) { player = battle.PickTarget(); return; } PlayerRef.Find(ref player); }
 
     void ChasePlayer()
     {

@@ -27,8 +27,8 @@ public partial class FallingLeaves
     bool UpdateTreeLeafRange(ref ParticleSystem.Particle particle)
     {
         if((particle.randomSeed&LocalLeafBit)!=0)return false;
-        var player=PlayerRef.Transform;
-        if(player!=null && !LeafPersistenceRules.Outside(particle.position,player.position))return false;
+        // The player's position is read once per frame (LateUpdate), not once per leaf
+        if(rangeHasPlayer && !LeafPersistenceRules.Outside(particle.position,rangePlayer))return false;
         // Retire distant particles gradually, with a fresh short fade rather than a huge normalized age.
         if(particle.remainingLifetime>3f)particle.startLifetime=particle.remainingLifetime=3f;
         return true;
