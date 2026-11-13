@@ -112,8 +112,6 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 | Multiplayer | `Scripts/Multiplayer/*` |
 | Menus and UI | `Scripts/UI/*` |
 
-A one-line description of every script is in [AGENTS.md](AGENTS.md) (the project map).
-
 ## Design documents
 
 - [Game Design Document (v5)](docs/GDD%20-%20Mossblood%20v5.docx)
@@ -148,7 +146,7 @@ A one-line description of every script is in [AGENTS.md](AGENTS.md) (the project
 
 ## Development process
 
-Designed, directed and tested by me. I use an **AI-assisted workflow** (Claude): I define each mechanic, its feel and its rules, review and integrate the code, test it in Unity and iterate. The project keeps an `AGENTS.md` map with hard rules (never touch the quest chests, progress is permanent, performance rules, no leftover setup tools) so every change stays consistent. The mechanic documents show those iterations: what broke in play and what changed.
+Designed, directed and tested by me. I use an **AI-assisted workflow** (Claude): I define each mechanic, its feel and its rules, review and integrate the code, test it in Unity and iterate. The mechanic documents show those iterations: what broke in play and what changed.
 
 ## Running the project
 

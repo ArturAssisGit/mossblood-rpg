@@ -1,6 +1,6 @@
 # Scripts
 
-The game's C# code (`Assets/Scripts` in the Unity project). A one-line description of every script is in [../AGENTS.md](../AGENTS.md).
+The game's C# code (`Assets/Scripts` in the Unity project).
 
 | Folder | Contents |
 | --- | --- |
