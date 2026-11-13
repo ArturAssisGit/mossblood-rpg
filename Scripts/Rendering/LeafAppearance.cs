@@ -5,6 +5,62 @@ public static class LeafAppearance
 {
     static readonly Material[] materials=new Material[2];
     static readonly Mesh[] meshes=new Mesh[2];
+    static Mesh twig;
+
+    // A small twig, about twice as long as a leaf: a thin, slightly bent stick (two crossed strips, so it has body from
+    // every side) with a side shoot and four leaves on it. Leaf parts use the leaf UVs (0..1); the bark uses u 2..3,
+    // which the leaf shader draws as bark.
+    public static Mesh Twig()
+    {
+        if(twig!=null){ParticleSharedResources.Track(twig);return twig;}
+        var v=new System.Collections.Generic.List<Vector3>();var uv=new System.Collections.Generic.List<Vector2>();var tri=new System.Collections.Generic.List<int>();
+        Vector3 Stem(float t)=>new Vector3(.07f*Mathf.Sin(t*Mathf.PI)-.03f,t*2f-1f,.03f*Mathf.Sin(t*Mathf.PI*2f));
+        void Strip(System.Func<float,Vector3> path,float from,float to,float width0,float width1,Vector3 across,int steps)
+        {
+            int start=v.Count;
+            for(int s=0;s<=steps;s++)
+            {
+                float k=s/(float)steps,t=Mathf.Lerp(from,to,k),w=Mathf.Lerp(width0,width1,k)*.5f;
+                Vector3 c=path(t);
+                v.Add(c-across*w);uv.Add(new Vector2(2f,k));
+                v.Add(c+across*w);uv.Add(new Vector2(3f,k));
+            }
+            for(int s=0;s<steps;s++){int a=start+s*2;tri.Add(a);tri.Add(a+2);tri.Add(a+1);tri.Add(a+1);tri.Add(a+2);tri.Add(a+3);}
+        }
+        // the stick, twice (crossed)
+        Strip(Stem,0f,1f,.11f,.05f,Vector3.right,6);
+        Strip(Stem,0f,1f,.11f,.05f,Vector3.forward,6);
+        // a side shoot
+        Vector3 forkAt=Stem(.42f),forkDir=new Vector3(.55f,.8f,.12f).normalized;
+        System.Func<float,Vector3> shoot=t=>forkAt+forkDir*(t*.55f);
+        Strip(shoot,0f,1f,.055f,.028f,Vector3.Cross(forkDir,Vector3.forward).normalized,3);
+        Strip(shoot,0f,1f,.055f,.028f,Vector3.forward,3);
+        // leaves: (base point, direction, size, twist around the stick)
+        void Leaf(Vector3 at,Vector3 dir,float size,float twist)
+        {
+            dir.Normalize();
+            Vector3 side=Vector3.Cross(dir,Vector3.forward);if(side.sqrMagnitude<.01f)side=Vector3.right;side.Normalize();
+            side=Quaternion.AngleAxis(twist,dir)*side;
+            Vector3 normal=Vector3.Cross(side,dir).normalized;
+            int start=v.Count;
+            for(int y=0;y<3;y++)for(int x=0;x<3;x++)
+            {
+                float u=x*.5f,w=y*.5f;
+                v.Add(at+dir*(w*size)+side*((u-.5f)*size)+normal*(((u-.5f)*(u-.5f)*.17f+Mathf.Sin(w*Mathf.PI)*.03f)*size));
+                uv.Add(new Vector2(u,w));
+            }
+            for(int y=0;y<2;y++)for(int x=0;x<2;x++){int a=start+y*3+x;tri.Add(a);tri.Add(a+3);tri.Add(a+1);tri.Add(a+1);tri.Add(a+3);tri.Add(a+4);}
+        }
+        Leaf(Stem(.3f),new Vector3(-.8f,.55f,.15f),.72f,25f);
+        Leaf(Stem(.58f),new Vector3(.85f,.5f,-.2f),.78f,-30f);
+        Leaf(shoot(1f),forkDir+new Vector3(.2f,.2f,0f),.62f,15f);
+        Leaf(Stem(.97f),new Vector3(-.15f,1f,.1f),.8f,-10f);
+        var mesh=new Mesh{name="Twig with leaves"};
+        var colors=new Color32[v.Count];for(int i=0;i<colors.Length;i++)colors[i]=new Color32(255,255,255,255);
+        mesh.SetVertices(v);mesh.SetUVs(0,uv);mesh.colors32=colors;mesh.SetTriangles(tri,0);
+        mesh.RecalculateNormals();mesh.RecalculateBounds();
+        twig=mesh;ParticleSharedResources.Track(twig);return twig;
+    }
     public static Material Material(bool blossom)
     {
         int i=blossom?1:0;

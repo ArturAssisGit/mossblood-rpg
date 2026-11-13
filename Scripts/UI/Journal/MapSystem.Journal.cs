@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 public partial class MapSystem
 {
-    enum JournalTab { Character, Inventory, Map, Objectives, Diary, System }
+    enum JournalTab { Character, Inventory, Map, Objectives, League, War, Expeditions, System } // the Diary lives inside Objectives
     private JournalTab journalTab = JournalTab.Map;
     private RectTransform journalContent, mapArt;
     private GameObject mapPage, characterPage, systemPage;
@@ -48,17 +48,19 @@ public partial class MapSystem
         var eyebrow = UIKit.CreateText("Heading", bigMapWindow.transform, "J O U R N A L", 22f, UIStyle.Tan, UIStyle.Font, TextAlignmentOptions.MidlineLeft);
         UIKit.SetRect(eyebrow.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(60f, -80f), new Vector2(-60f, -30f));
         // Same order as JournalTab
-        string[] labels = { "CHARACTER", "INVENTORY", "MAP", "OBJECTIVES", "DIARY", "SYSTEM" };
+        string[] labels = { "CHARACTER", "INVENTORY", "MAP", "OBJECTIVES", "RONIN LEAGUE", "WAR", "EXPEDITIONS", "SYSTEM" };
         journalTabs = new Button[labels.Length];
         for (int i = 0; i < labels.Length; i++)
         {
             JournalTab page = (JournalTab)i;
-            Button button = UIStyle.CreateButton(bigMapWindow.transform, labels[i], 52f, () => SelectJournalTab(page), 23f);
+            Button button = UIStyle.CreateButton(bigMapWindow.transform, labels[i], 52f, () => SelectJournalTab(page), 21f);
             RectTransform rect = button.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(208f, 52f);
-            rect.anchoredPosition = new Vector2((i - (labels.Length - 1) * 0.5f) * 222f, -80f);
+            rect.sizeDelta = new Vector2(184f, 52f);
+            var tabText = button.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            if (tabText != null) { tabText.enableAutoSizing = true; tabText.fontSizeMin = 15f; tabText.fontSizeMax = 22f; } // long names shrink to fit
+            rect.anchoredPosition = new Vector2((i - (labels.Length - 1) * 0.5f) * 194f, -80f);
             ColorBlock colors = button.colors;
             colors.disabledColor = new Color(1.15f, 1f, 0.68f, 1f);
             button.colors = colors;
@@ -83,8 +85,10 @@ public partial class MapSystem
         BuildCharacterPage();
         BuildInventoryPage();
         BuildSystemPage();
-        BuildDiaryPage();
-        BuildObjectivesPage();
+        BuildObjectivesPage(); // the Diary is built inside it
+        BuildLeaguePage();
+        BuildWarPage();
+        BuildExpeditionsPage();
         var hint = UIKit.CreateText("JournalHint", bigMapWindow.transform, "", 20f, UIStyle.Tan, UIStyle.Font);
         UIKit.SetRect(hint.rectTransform, Vector2.zero, new Vector2(1f, 0f), new Vector2(60f, 22f), new Vector2(-60f, 66f));
         hint.text = $"[{mapKey}] Map    |    [I] Inventory    |    [ESC] Close    |    Select a tab above";
@@ -189,10 +193,14 @@ public partial class MapSystem
         RevealJournalPage(characterPage,tab == JournalTab.Character);
         RevealJournalPage(systemPage,tab == JournalTab.System);
         RevealJournalPage(inventoryPage,tab == JournalTab.Inventory);
-        RevealJournalPage(diaryPage,tab == JournalTab.Diary);
         RevealJournalPage(objectivesPage,tab == JournalTab.Objectives);
-        if (tab == JournalTab.Diary) RefreshDiary();
+        RevealJournalPage(leaguePage,tab == JournalTab.League);
+        RevealJournalPage(warPage,tab == JournalTab.War);
+        RevealJournalPage(expPage,tab == JournalTab.Expeditions);
         if (tab == JournalTab.Objectives) OpenObjectives();
+        if (tab == JournalTab.League) OpenLeague();
+        if (tab == JournalTab.War) OpenWar();
+        if (tab == JournalTab.Expeditions) OpenExpeditions();
         for (int i = 0; i < journalTabs.Length; i++)
         {
             bool active=i==(int)tab;journalTabs[i].interactable=!active;
@@ -219,11 +227,13 @@ public partial class MapSystem
     void RefreshJournal()
     {
         LayoutJournalMap();
-        if (journalTab == JournalTab.Inventory) FitInventory();
+        if (journalTab == JournalTab.Inventory) { FitInventory(); RefreshInventoryButtons(); }
         mapStatus.text = hasMap ? "" : "No terrain map is available in this scene.";
         journalLoad.interactable = !MultiplayerSession.IsOnline;
-        if (journalTab == JournalTab.Diary && Time.unscaledTime >= diaryRefreshAt) RefreshDiary();
-        if (journalTab == JournalTab.Objectives) RefreshObjectivesIfChanged();
+        if (journalTab == JournalTab.Objectives && objectivesShowDiary && Time.unscaledTime >= diaryRefreshAt) RefreshDiary();
+        if (journalTab == JournalTab.Objectives && !objectivesShowDiary) RefreshObjectivesIfChanged();
+        if (journalTab == JournalTab.War) RefreshWarIfChanged();
+        if (journalTab == JournalTab.Expeditions) RefreshExpeditionsIfChanged();
         if (journalTab != JournalTab.Character || Time.unscaledTime < journalRefreshAt) return;
         journalRefreshAt = Time.unscaledTime + 0.25f;
         RefreshCharacterStats();

@@ -28,6 +28,7 @@ public sealed partial class BossEncounterDirector
     void CaptureEncounterStart(EnemyAI_01 boss, Vector3 playerPosition)
     {
         // Preserve the original entrance across retries, never capture the death location.
+        if (boss != null && boss.arenaDuelist) return; // an arena duel has no retry: no checkpoint
         if (checkpointReady && checkpointBoss == boss) return;
         checkpointVersion++; checkpointBoss = boss; checkpointReady = true;
         dialogueEntry = boss.bossRetryPoint != null ? boss.bossRetryPoint.position : playerPosition;

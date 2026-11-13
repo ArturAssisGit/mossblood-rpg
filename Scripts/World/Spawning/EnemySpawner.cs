@@ -79,6 +79,8 @@ public class EnemySpawner : MonoBehaviour
             UpdatePartyTargets();
             player = NearestPlayer();
             playerInRange = activationDistance <= 0f || (player != null && Flat(player.position - transform.position).sqrMagnitude <= activationDistance * activationDistance);
+            // Only while that player stands on this spawn point's island (not from across the water on another island)
+            if (playerInRange && player != null && !WorldZone.SameIsland(player.position, transform.position)) playerInRange = false;
             DespawnFarEnemies();
 
             // Is any enemy of this spawn point missing? While none is, the respawn timer keeps resetting,
@@ -86,7 +88,7 @@ public class EnemySpawner : MonoBehaviour
             anyMissing = false;
             foreach (SpawnGroup group in groups)
             {
-                group.alive.RemoveAll(IsDestroyed);
+                group.alive.RemoveAll(Destroyed);
                 if (group.prefab != null && group.alive.Count < group.targetCount) anyMissing = true;
             }
         }
@@ -125,7 +127,7 @@ public class EnemySpawner : MonoBehaviour
         missing.Clear();
         foreach (SpawnGroup group in groups)
         {
-            group.alive.RemoveAll(IsDestroyed);
+            group.alive.RemoveAll(Destroyed);
             if (group.prefab != null && group.alive.Count < group.targetCount) missing.Add(group);
         }
         if (missing.Count == 0) return;
@@ -146,14 +148,16 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    static bool IsDestroyed(GameObject e) => e == null;
+    // Gone, or dead (the body lies there for a minute, but it no longer counts: the respawn timer starts at the death)
+    static bool IsDestroyed(GameObject e) => e == null || (e.TryGetComponent(out EnemyAI_01 ai) && ai.IsDead);
+    static readonly System.Predicate<GameObject> Destroyed = IsDestroyed; // one delegate, not a new one every check
 
     // Every missing enemy of every group, in the same frame
     void SpawnAllMissing()
     {
         foreach (SpawnGroup group in groups)
         {
-            group.alive.RemoveAll(IsDestroyed);
+            group.alive.RemoveAll(Destroyed);
             if (group.prefab == null) continue;
             int missingCount = group.targetCount - group.alive.Count;
             for (int i = 0; i < missingCount; i++) TrySpawn(group);

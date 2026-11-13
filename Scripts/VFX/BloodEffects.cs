@@ -57,11 +57,14 @@ public partial class BloodEffects : MonoBehaviour
         UnityEngine.SceneManagement.SceneManager.sceneLoaded+=ClearBloodWorld;
     }
 
+    // Every hit bleeds more than the authored amount (more blood in combat)
+    public const float HitBloodScale = 1.45f;
+
     // point = where the hit landed, direction = where the blood flies (away from the attacker)
     public static void Spawn(Vector3 point, Vector3 direction, float amount = 1f, Vector3 cutDirection = default)
     {
         if (Instance == null) WorldUtil.CreatePersistent<BloodEffects>("BloodEffects (auto)");
-        if(Instance.isActiveAndEnabled)Instance.SpawnBlood(point, direction, amount, cutDirection);
+        if(Instance.isActiveAndEnabled)Instance.SpawnBlood(point, direction, amount * HitBloodScale, cutDirection);
     }
 
     // Finisher: a long, strong gush that follows the wound (pass the enemy as 'follow' so it moves with the body)

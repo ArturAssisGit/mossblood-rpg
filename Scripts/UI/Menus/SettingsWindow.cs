@@ -79,6 +79,7 @@ public class SettingsWindow : MenuWindow
     {
         ToggleRow(page, "Camera shake", GameSettings.CameraShake, v => GameSettings.CameraShake = v);
         ToggleRow(page, "Black bars in Scenic View", GameSettings.ScenicBars, v => GameSettings.ScenicBars = v);
+        ToggleRow(page, "Scenic View in open fields (horse)", GameSettings.AutoScenicOnHorse, v => GameSettings.AutoScenicOnHorse = v);
 
         int[] minutes = { 0, 2, 5, 10, 15, 30 };
         string[] names = { "Off", "Every 2 min", "Every 5 min", "Every 10 min", "Every 15 min", "Every 30 min" };

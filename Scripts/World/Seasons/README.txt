@@ -1,11 +1,16 @@
 SEASONS (Mossblood, Nov 2026)
 
 What it does
-  Summer = the world exactly as authored (nothing changes).
+  Summer = the standard look: Grass_01 / Grass_03, ferns, grass patches, bushes and Flowers_Large all share one green
+           (Summer Green on the Season System, darker and softer than the authored greens); GroundGrass follows it.
+           Blossom trees, Flowers_04 and the other trees stay as authored.
   Autumn = leaves of every painted terrain tree (not the rocks) turn yellow / orange / a little red;
            Grass_01 and Grass_03 turn golden; the GroundGrass terrain layer follows Grass_01.
   Winter = leaves and grass go white / snowy; GroundGrass goes pale.
   Falling leaves and cherry petals follow the season too.
+  The moss on the cliff rocks (CliffRock_01 / CliffRock_02) always has the colour of Grass_01: green in summer (baked into
+  their materials as the original look: Assets/Art/Seasons/CliffMoss_Summer.png), golden in autumn, snowy in winter
+  (SeasonCliffMoss.cs: recoloured copies of the moss texture, put on the rocks with property blocks, assets untouched).
   In winter the rain falls as snow (SeasonSnowfall.cs): same weather timing, fog and wind, but no rain drops,
   splashes, puddles or rain sound; drizzle = light snow, rain = steady snow, storm = blizzard.
 
@@ -24,7 +29,7 @@ Try it
 Safety
   The first time it runs it writes the original values into SeasonOriginals.json (this folder).
   Those values are put back automatically when play stops and when the editor opens after a crash
-  (Summer = the original colours). Assets are never saved in another season's colours.
+  (the assets themselves always keep their original colours). Assets are never saved in another season's colours.
 
 Remove it completely
   1. Stop Play (the original colours come back on their own).

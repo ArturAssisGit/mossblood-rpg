@@ -153,6 +153,7 @@ public partial class EnemyAI_01
     {
 
         if (victim == null || !victim.gameObject.activeInHierarchy) return false;
+        if (battle != null) { var foe = victim.GetComponentInParent<EnemyAI_01>(); if (foe != null) return !foe.IsDead; } // a fighter of the other army
 
         if (victim == observedTarget)
 
@@ -299,6 +300,13 @@ public partial class EnemyAI_01
 
         maneuverUntil = 0f;
 
+    }
+
+    internal void HoldForBattleResult()
+    {
+        holdForMatchStart = true;
+        CancelCombatAction();
+        StopBossDodge();
     }
 
     void CancelCombatAction(bool resetCombo=true)

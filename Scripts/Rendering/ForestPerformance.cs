@@ -101,6 +101,15 @@ public class ForestPerformance : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
+    // Tall painted trees within this radius (other systems ask: e.g. the open-field camera on horseback).
+    // -1 = the trees have not been read yet.
+    public static int TallTreesWithin(Vector3 center, float radius)
+    {
+        ForestPerformance f = Instance;
+        if (f == null || !f.indexed) return -1;
+        return f.CountTrees(center, radius);
+    }
+
     // Renders something (e.g. the top-down map photo) with the full view distance
     public static void WithFullDetail(System.Action render)
     {

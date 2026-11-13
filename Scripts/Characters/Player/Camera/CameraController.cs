@@ -65,6 +65,9 @@ public partial class CameraController : MonoBehaviour
     [Tooltip("How fast it turns towards the boss (higher = more responsive)")] public float lockOnTurnSpeed = 7f;
     [Tooltip("Mouse sensitivity multiplier while locked (1 = normal). Lower = you can only look around a little")] [Range(0.05f, 1f)] public float lockedMouseFactor = 0.4f;
     [Tooltip("Camera pitch while locked (degrees, positive = looking down)")] public float bossPitch = 0f;
+    [Tooltip("Extra look down on top of Boss Pitch (degrees)")] public float bossLookDown = 3f;
+    [Tooltip("How much the camera turns toward the fight: 0 = looks straight past your shoulder at the boss, 1 = fully at the Aim Point")] [Range(0f, 1f)] public float bossTurnToFight = .8f;
+    [Tooltip("Where the camera aims between you and the boss: 0 = at you, 0.5 = halfway, 1 = at the boss")] [Range(0f, 1f)] public float bossAimPoint = .3f;
     [Tooltip("How fast the camera follows the player (higher = tighter, more responsive)")] public float bossFollowSpeed = 12f;
     [Tooltip("How fast it zooms in (higher = faster)")] public float bossZoomSpeed = 6f;
     [Tooltip("Seconds to blend in/out of the boss camera")] public float bossBlendTime = 0.6f;
@@ -189,9 +192,11 @@ public partial class CameraController : MonoBehaviour
     }
 
     private float currentX = 0f, currentY = 15f, currentDistance;
+    float battleCameraWeight;
     private Vector2 currentOffset;
     private PlayerCombat targetCombat;
     private bool scenicView;
+    private bool huntedRiding; private float nextHuntProbe;
     public static bool CinematicView { get; private set; }
     private float scenicWeight, barWeight;
     private GameObject barCanvas;
@@ -309,7 +314,7 @@ public partial class CameraController : MonoBehaviour
         float currentScore = float.MaxValue;
         if (softEnemy != null)
         {
-            bool valid = softEnemy.gameObject.activeInHierarchy && !softEnemy.IsDead && !softEnemy.isBoss &&
+            bool valid = softEnemy.gameObject.activeInHierarchy && !softEnemy.IsDead && !softEnemy.isBoss && !BattleCombatant.IsAlly(softEnemy) &&
                          (softEnemy.transform.position - playerPos).sqrMagnitude <= SoftTargetRange(true)*SoftTargetRange(true);
             currentScore = valid ? ScreenScore(softEnemy) : float.MaxValue;
             if (currentScore > softLockReleaseRadius) { softEnemy = null; currentScore = float.MaxValue; }
@@ -323,7 +328,7 @@ public partial class CameraController : MonoBehaviour
         float rangeSqr = SoftTargetRange(false)*SoftTargetRange(false);
         foreach (EnemyAI_01 e in EnemyAI_01.All)
         {
-            if (e == null || e == softEnemy || e.IsDead || e.isBoss) continue;
+            if (e == null || e == softEnemy || e.IsDead || e.isBoss || BattleCombatant.IsAlly(e)) continue; // never your own ronin
             if ((e.transform.position - playerPos).sqrMagnitude > rangeSqr) continue;
             float score = ScreenScore(e);
             if (score < bestScore) { bestScore = score; best = e; }
@@ -389,7 +394,7 @@ public partial class CameraController : MonoBehaviour
             float userK = GameSettings.MouseSensitivity * (aiming ? 0.8f : 1f); // Settings > Controls
             currentX += mouseX * mouseSensitivityX * mouseK * userK;
             currentY -= mouseY * mouseSensitivityY * mouseK * userK * (GameSettings.InvertY ? -1f : 1f);
-            if (Input.GetKeyDown(scenicViewKey)) scenicView = !scenicView;
+            if (Input.GetKeyDown(scenicViewKey)) ToggleScenicByKey(); // also turns off the automatic open-field view
         }
 
         // 2. Clamp vertical rotation (no flipping upside down)
@@ -399,18 +404,25 @@ public partial class CameraController : MonoBehaviour
         bool armed = !riding && targetCombat != null && targetCombat.IsArmed;
         bool mouseSwordStrafe=armed && targetCombat.UsesMouseSwordStrafe;
         UpdateSwordStrafeFrame(mouseSwordStrafe);
-        if (menuOpen || MapSystem.IsMapOpen || RespawnSystem.IsDeathScreenOpen || TitleScreenManager.IsOpen) scenicView = false;
+        bool viewBlocked = menuOpen || MapSystem.IsMapOpen || RespawnSystem.IsDeathScreenOpen || TitleScreenManager.IsOpen;
+        if (riding && Time.unscaledTime >= nextHuntProbe) { nextHuntProbe = Time.unscaledTime + 0.3f; huntedRiding = HuntedNow(target); }
+        UpdateOpenFieldScenic(riding, viewBlocked || (riding && huntedRiding) || QuickWheel.IsOpen || dialogueActive);
+        if (viewBlocked) scenicView = false;
         CinematicView = (scenicView && !armed) || BossEncounterDirector.IsIntroducing;
         CinematicHudVisibility.Ensure();
         if (armed) scenicView = false; // drawing a weapon brings the camera back for combat
 
+        bool battleView = BattleField.UsesBattleCamera;
+        if (battleView) scenicView = false;
+        battleCameraWeight = Mathf.MoveTowards(battleCameraWeight, battleView ? 1f : 0f, Time.unscaledDeltaTime / 1.5f);
+        float battleFrame = Mathf.SmoothStep(0f, 1f, battleCameraWeight);
         bool combatView = armed && !aiming && !scenicView && !overrideActive;
         if (combatView) ScanEnemies(target.position);
         alert = Mathf.MoveTowards(alert, combatView && enemyNearby ? 1f : 0f, openSpeed * Time.deltaTime);
         UpdateFollowPosition();
 
         // Boss camera: blend weight + lock-on (real time based blend, so it also works in hit-stop)
-        bool bossOn = !riding && BossFight(target.position) && !overrideActive;
+        bool bossOn = !battleView && !riding && BossFight(target.position) && !overrideActive;
         if (bossOn) scenicView = false;
         CinematicView = BossEncounterDirector.IsIntroducing || (scenicView && !armed && !bossOn);
 
@@ -441,7 +453,7 @@ public partial class CameraController : MonoBehaviour
         bossWeight = Mathf.MoveTowards(bossWeight, bossOn ? 1f : 0f, Time.unscaledDeltaTime / Mathf.Max(0.05f, bossBlendTime));
         float bw = Mathf.SmoothStep(0f, 1f, bossWeight);
         LockedBoss = (bossOn && boss != null && (bossHardLock || bossWeight > 0.3f)) ? boss.transform : null;
-        float bossAimPitch = bossPitch;
+        float bossAimPitch = bossPitch + bossLookDown;
         if (bw > 0f && boss != null)
         {
             Vector3 toBoss = boss.transform.position - target.position;
@@ -450,10 +462,19 @@ public partial class CameraController : MonoBehaviour
             float k = BossCameraLockRules.Weight(bossHardLock, bw, lockOnTurnSpeed, lockOnStrength,
                 Time.unscaledTime-lastMouseTime, Time.unscaledDeltaTime, BossEncounterDirector.IsIntroducing);
             // Track elevation as well as yaw, so a boss on steps or a slope stays in the shot.
-            if (bossHardLock) bossAimPitch = Mathf.Clamp(bossPitch-Mathf.Atan2(toBoss.y,Mathf.Max(.5f,flat+currentDistance))*Mathf.Rad2Deg,minYAngle,maxYAngle);
+            if (bossHardLock) bossAimPitch = Mathf.Clamp(bossPitch+bossLookDown-Mathf.Atan2(toBoss.y,Mathf.Max(.5f,flat+currentDistance))*Mathf.Rad2Deg,minYAngle,maxYAngle);
             if (flat > 0.3f)
             {
                 float wantYaw = Mathf.Atan2(toBoss.x, toBoss.z) * Mathf.Rad2Deg;
+                // Turn a little toward the fight: from where the camera sits (behind, to the right) aim between you and the boss
+                if (bossTurnToFight > 0f)
+                {
+                    Quaternion facing = Quaternion.Euler(0f, wantYaw, 0f);
+                    Vector3 eye = target.position + facing * new Vector3(bossOffset.x, 0f, -bossDistance * bossEncounterDistanceScale);
+                    Vector3 middle = Vector3.Lerp(target.position, boss.transform.position, bossAimPoint) - eye;
+                    if (new Vector2(middle.x, middle.z).sqrMagnitude > .01f)
+                        wantYaw = Mathf.LerpAngle(wantYaw, Mathf.Atan2(middle.x, middle.z) * Mathf.Rad2Deg, bossTurnToFight);
+                }
                 currentX = Mathf.LerpAngle(currentX, wantYaw, k);
             }
             // Keep a level waist-height view; elevation differences must not tip the shot down.
@@ -500,11 +521,11 @@ public partial class CameraController : MonoBehaviour
         currentOffset = Vector2.Lerp(currentOffset, wantedOffset, blend);
 
         // Finisher: zoom in close (real time, so the slow motion doesn't slow the zoom), then smoothly back
-        bool finisher = finisherCamera && PlayerFinisher.IsActive;
+        bool finisher = !battleView && finisherCamera && PlayerFinisher.IsActive;
         float fSpeed = finisher ? finisherZoomInSpeed : finisherZoomOutSpeed;
         finisherWeight = Mathf.MoveTowards(finisherWeight, finisher ? 1f : 0f, fSpeed * Time.unscaledDeltaTime);
         float fw = Mathf.SmoothStep(0f, 1f, finisherWeight);
-        float useDistance = currentDistance;
+        float useDistance = currentDistance * Mathf.Lerp(1f, 3f, battleFrame);
         Vector2 useOffset = currentOffset;
 
         float normalViewWeight = heightWeight * alert * (1f - bw) * (1f - fw) * (1f - mw) * (1f-SwordStrafeFrame);
@@ -544,6 +565,7 @@ public partial class CameraController : MonoBehaviour
         }
 
         position += Vector3.up * FootstepOffset(menuOpen, aiming);
+        if (battleFrame > 0f) KeepBattleCameraClear(ref position, rotation, useDistance);
 
         ApplyFinisherShot(ref position,ref rotation,fw,finisher);
 
@@ -557,7 +579,7 @@ public partial class CameraController : MonoBehaviour
         }
 
         float chargeZoomTarget=targetCombat!=null && !menuOpen && !MapSystem.IsMapOpen && !overrideActive
-            ? targetCombat.ChargeProgress*(1f-fw)*(1f-dw)*(1f-mw):0f;
+            ? targetCombat.ChargeProgress*(1f-fw)*(1f-dw)*(1f-mw)*(1f-battleFrame):0f;
         chargedZoomWeight=Mathf.MoveTowards(chargedZoomWeight,chargeZoomTarget,Time.unscaledDeltaTime*8f);
         // Tighter field of view in a fight (cinematic)
         if (cam != null && baseFov > 0f) cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, (GameSettings.Fov > 0f ? GameSettings.Fov : baseFov) + softLockFov * sw * (1f - bw)*(1-SwordStrafeFrame) + horseScenicFov * mw * Mathf.SmoothStep(0f, 1f, scenicWeight) + dialogueFov * dw - chargedAttackZoom*chargedZoomWeight, 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
@@ -571,6 +593,24 @@ public partial class CameraController : MonoBehaviour
         if (overrideActive) transform.SetPositionAndRotation(overridePosition, overrideRotation);
 
         UpdateScenicBars(((scenicBars && GameSettings.ScenicBars && scenicView) || (dialogueActive && dialogueBars) || BossEncounterDirector.IsIntroducing) && !overrideActive);
+    }
+
+    void KeepBattleCameraClear(ref Vector3 position, Quaternion rotation, float cameraDistance)
+    {
+        Vector3 behind = rotation * Vector3.back;
+        Vector3 focus = position - behind * cameraDistance;
+        int count = Physics.SphereCastNonAlloc(focus, .15f, behind, finisherCameraHits, cameraDistance,
+            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        float clearDistance = cameraDistance;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = finisherCameraHits[i];
+            if (hit.transform.IsChildOf(target) || target.IsChildOf(hit.transform)
+                || hit.collider.GetComponentInParent<EnemyAI_01>() != null
+                || hit.collider.GetComponentInParent<RemotePlayerAvatar>() != null) continue;
+            clearDistance = Mathf.Min(clearDistance, Mathf.Max(.2f, hit.distance - .1f));
+        }
+        position = focus + behind * clearDistance;
     }
 
     // Distance-driven steps: no bob against a wall, and running naturally has a faster cadence.
@@ -779,6 +819,7 @@ public partial class CameraController
         targetCombat=null;footstepTarget=null;
         followPos=target.position;smoothVelocity=Vector3.zero;
         currentDistance=distance;currentOffset=Vector2.zero;
+        battleCameraWeight = 0f;
     }
     void ResetCameraTransitions()
     {

@@ -36,7 +36,7 @@ public partial class FallingLeaves
         }
         if (localLeafSheltered) { localLeafCredit = 0f; return; }
         float variation = Mathf.Lerp(.65f, 1.15f, Mathf.PerlinNoise(Time.time * .17f, 31.7f));
-        float rate = LocalWindLeafRules.Rate(localLeavesPerSecond, rain, GuidingWind.Strength, LivingEnvironment.GustStrength) * variation;
+        float rate = LocalWindLeafRules.Rate(localLeavesPerSecond, rain, GuidingWind.Strength, LivingEnvironment.GustStrength) * variation * AmountScale;
         localLeafCredit = Mathf.Min(4f, localLeafCredit + rate * Time.deltaTime);
         int attempts = Mathf.Min(4, Mathf.FloorToInt(localLeafCredit));
         localLeafCredit -= attempts;
@@ -105,7 +105,7 @@ public partial class FallingLeaves
             position = ground + normal * (grounded ? .035f : Random.Range(minHeight, maxHeight)),
             velocity = grounded ? Vector3.down * .1f : Vector3.ClampMagnitude(windNow, maxLeafWindSpeed) * Random.Range(.65f, 1f) + Vector3.up * Random.Range(.2f, .7f),
             startLifetime = Random.Range(lowLife, highLife),
-            startSize = Random.Range(Mathf.Max(.03f, leafSize.x), Mathf.Max(.04f, Mathf.Max(leafSize.x, leafSize.y))),
+            startSize = Random.Range(Mathf.Max(.03f, leafSize.x), Mathf.Max(.04f, Mathf.Max(leafSize.x, leafSize.y))) * LeafMotionRules.LeafScale,
             startColor = LeafMotionRules.Color(false, Random.value),
             randomSeed = LocalLeafBit | localSequence,
             rotation3D = grounded ? (Quaternion.FromToRotation(Vector3.back, normal) * Quaternion.Euler(0f, 0f, Random.Range(0f, 360f))).eulerAngles

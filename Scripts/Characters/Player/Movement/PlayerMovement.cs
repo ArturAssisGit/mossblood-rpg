@@ -251,6 +251,7 @@ public partial class PlayerMovement : MonoBehaviour
             FreeMove(direction, hasInput && !isAttacking, isBlocking, isRunning, currentSpeed);
         }
         if (!slowMoving) slowMoveSpeed = 0f;
+        TurnSteps(isArmed || isAimingBow, hasInput && !isBlocking, isAttacking || menuOpen, walkTempo);
 
         ClampToGround();
 
@@ -572,6 +573,43 @@ public static class SlowWalkRules
 
 public partial class PlayerMovement
 {
+    [Header("Turning on the spot (combat)")]
+    [Tooltip("Combat stance (sword, small swords or bow), standing still: when the body turns with the camera the feet take quick little steps instead of the body spinning on the spot")]
+    public bool turnSteps = true;
+    [Tooltip("Turn speed (degrees per second) from which the feet start stepping")] public float turnStepFrom = 30f;
+    [Tooltip("How quick the little steps are (animation speed while turning on the spot)")] [Range(1f, 3f)] public float turnStepTempo = 1.9f;
+    float turnLastYaw, turnStepAmount;
+    bool turnYawKnown, turnStepping;
+
+    // Shuffling feet: the body's turn speed drives a small sideways step in the strafe blend tree (right turn = steps to
+    // the right), played faster than walking; nothing moves the character, only the legs. Fades in and out smoothly.
+    void TurnSteps(bool combatStance, bool moving, bool busy, float walkTempo)
+    {
+        float yaw = transform.eulerAngles.y, dt = Time.deltaTime;
+        float rate = turnYawKnown && dt > 0f ? Mathf.DeltaAngle(turnLastYaw, yaw) / dt : 0f;
+        turnLastYaw = yaw; turnYawKnown = true;
+        bool active = turnSteps && combatStance && !moving && !busy && controller.isGrounded && Mathf.Abs(rate) > turnStepFrom;
+        float want = active ? Mathf.Clamp(rate / 200f, -1f, 1f) : 0f;
+        turnStepAmount = Mathf.MoveTowards(turnStepAmount, want, dt * (active ? 9f : 5f));
+        if (Mathf.Abs(turnStepAmount) < .01f)
+        {
+            turnStepAmount = 0f;
+            if (turnStepping && hasCombatLocomotionTempo) { anim.SetFloat(CombatLocomotionTempo, walkTempo); lastCombatLocomotionTempo = walkTempo; }
+            turnStepping = false;
+            return;
+        }
+        turnStepping = true;
+        float step = Mathf.Abs(turnStepAmount);
+        anim.SetFloat("MovX", Mathf.Clamp(turnStepAmount * .55f, -.45f, .45f));
+        anim.SetFloat("MovZ", step * .12f); // a touch forward: the feet pivot rather than slide sideways
+        if (hasCombatLocomotionTempo)
+        {
+            float tempo = walkTempo * Mathf.Lerp(1f, turnStepTempo, step);
+            anim.SetFloat(CombatLocomotionTempo, tempo);
+            lastCombatLocomotionTempo = tempo;
+        }
+    }
+
     [Header("Mouse-oriented sword strafe")]
     [Tooltip("Seconds for the body to follow mouse yaw. Lower = tighter; higher = more weight.")]
     [Range(.05f,.4f)]public float swordMouseFollowTime=.18f;

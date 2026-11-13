@@ -58,7 +58,7 @@ public sealed partial class BossEncounterDirector : MonoBehaviour
     public static bool TryBeginIntroduction(EnemyAI_01 boss)
     {
         var sync = MultiplayerSync.Instance;
-        if (boss == null || !boss.isBoss || boss.IsDead || boss.isNetworkMirror || boss.BossIntroductionActive
+        if (boss == null || !boss.isBoss || boss.arenaDuelist || boss.IsDead || boss.isNetworkMirror || boss.BossIntroductionActive
             || TitleScreenManager.IsOpen || (WorldSaveGameManager.instance != null && WorldSaveGameManager.instance.IsLoading)
             || (MultiplayerSession.IsOnline && (sync == null || !sync.IsServer))) return false;
         string key = boss.BossEncounterKey;

@@ -200,10 +200,12 @@ public partial class CampSystem
         float distance = delta.magnitude;
         if (distance < 0.1f) return wanted;
         Vector3 dir = delta / distance;
-        RaycastHit[] hits = Physics.SphereCastAll(target, 0.25f, dir, distance, ~0, QueryTriggerInteraction.Ignore);
+        RaycastHit[] hits = WorldUtil.HitBuffer; // every frame of the camp scene: no new array
+        int count = Physics.SphereCastNonAlloc(target, 0.25f, dir, hits, distance, ~0, QueryTriggerInteraction.Ignore);
         float nearest = distance;
-        foreach (RaycastHit hit in hits)
+        for (int i = 0; i < count; i++)
         {
+            RaycastHit hit = hits[i];
             Transform t = hit.collider.transform;
             if (t.IsChildOf(site.transform) || (shotPlayer != null && t.IsChildOf(shotPlayer))) continue;
             if (hit.collider.GetComponentInParent<CharacterController>() != null) continue;

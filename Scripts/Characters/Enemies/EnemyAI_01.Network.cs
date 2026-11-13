@@ -72,12 +72,27 @@ public partial class EnemyAI_01
             if (Time.frameCount % 300 == 0) Debug.LogWarning(name + " is not on a NavMesh. Bake a NavMesh Surface!");
             return;
         }
+        if (holdForMatchStart)
+        {
+            agent.isStopped = true;
+            StopMoveAnims();
+            return;
+        }
         if (HoldForEncounterPresentation()) return;
         if (TickBossIntroduction()) return;
         if (ContinueBossDodge()) return;
         if (Time.time < stunUntil) { agent.isStopped = true; StopMoveAnims(); return; }
         // Do not switch multiplayer victims in the middle of a telegraphed attack.
-        if (TargetPicker != null && !HasCommittedAction && Time.time >= nextTargetPick)
+        // In an army battle the BattleCombatant chooses (you, your ronin or the enemy army); never mid-attack
+        if (battle != null)
+        {
+            if (!HasCommittedAction && Time.time >= nextTargetPick)
+            {
+                nextTargetPick = Time.time + 0.5f;
+                player = battle.PickTarget();
+            }
+        }
+        else if (TargetPicker != null && !HasCommittedAction && Time.time >= nextTargetPick)
         {
             nextTargetPick = Time.time + 0.5f;
             Transform picked = TargetPicker(transform.position);
@@ -102,7 +117,7 @@ public partial class EnemyAI_01
         bool inRange = distance <= chaseRange || (isChasing && distance <= loseSightRange);
         bool wantsToFight = Time.time >= ignorePlayerUntil && !safeAtShrine
             && ((canSeePlayer && inRange) || (isChasing && EnemyTacticalPolicy.Remembered(false, Time.time, memoryUntil)));
-        if (wantsToFight && isBoss && BossEncounterDirector.TryBeginIntroduction(this)) return;
+        if (wantsToFight && isBoss && !arenaDuelist && BossEncounterDirector.TryBeginIntroduction(this)) return;
         if (!wantsToFight)
         {
             CancelCombatAction(); LeaveFight(); Wander();
@@ -331,7 +346,7 @@ public partial class EnemyAI_01
     {
         if(MultiplayerSync.Instance!=null && MultiplayerSync.Instance.IsServer && MultiplayerSync.Instance.HasLivingRemotePlayers)return;
         foreach (EnemyAI_01 e in All)
-            if (e != null && e.isBoss && !e.isDead && !e.isNetworkMirror) e.ResetAfterPlayerDeath();
+            if (e != null && e.isBoss && !e.arenaDuelist && !e.isDead && !e.isNetworkMirror) e.ResetAfterPlayerDeath();
     }
 
     void ResetAfterPlayerDeath()

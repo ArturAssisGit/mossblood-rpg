@@ -11,6 +11,9 @@ public partial class HorseMount
 {
     // ---------- Calling ----------
 
+    // The neigh when you call the horse or get on it: 30% quieter than the clip (it was too loud)
+    const float NeighVolume = .7f;
+
     public bool IsRidden => Ridden == this;
 
     public bool IsPresent => !hidden && isActiveAndEnabled;
@@ -117,7 +120,7 @@ public partial class HorseMount
 
             state = State.Idle;
 
-            if (neighSound != null) audioSource.PlayOneShot(neighSound, Volume());
+            if (neighSound != null) audioSource.PlayOneShot(neighSound, Volume() * NeighVolume);
 
             return;
 

@@ -12,6 +12,7 @@ public class ScreenFade : MonoBehaviour
     // True once the screen is fully black (after HoldBlack, or at the end of FadeOut)
     public static bool IsBlack => instance != null && instance.holding && instance.alpha >= 1f;
     private Image image;
+    private TextMeshProUGUI fadeTitle;
     private float alpha, duration = 1f, audioLevel = 1f;
     private bool fading, holding, fadeAudio, fadingOut;
     private const float AudioOutSeconds = 0.8f;
@@ -59,6 +60,7 @@ public class ScreenFade : MonoBehaviour
         f.holding = true;
         f.fadeAudio = fadeSound;
         f.alpha = 1f;
+        f.SetFadeTitle(null);
         f.Apply();
     }
 
@@ -86,7 +88,7 @@ public class ScreenFade : MonoBehaviour
     }
 
     // Fade from black to the game over this many seconds. With fadeSound the sound comes in with it.
-    public static void FadeIn(float seconds, bool fadeSound = true)
+    public static void FadeIn(float seconds, bool fadeSound = true, string title = null)
     {
         ScreenFade f = Get();
         f.duration = Mathf.Max(0.05f, seconds);
@@ -94,6 +96,7 @@ public class ScreenFade : MonoBehaviour
         f.holding = false;
         f.fadingOut = false;
         f.fading = true;
+        f.SetFadeTitle(title);
         f.fadeAudio = fadeSound;
         f.Apply();
     }
@@ -106,6 +109,7 @@ public class ScreenFade : MonoBehaviour
         f.fading = false;
         f.holding = false;
         f.fadingOut = true;
+        f.SetFadeTitle(null);
         f.fadeAudio = fadeSound;
         f.audioLevel = 1f;
         f.Apply();
@@ -118,6 +122,7 @@ public class ScreenFade : MonoBehaviour
         instance.fadingOut = false;
         instance.holding = false;
         instance.alpha = 0f;
+        instance.SetFadeTitle(null);
         instance.audioLevel = 1f;
         instance.EndIntro();
         instance.Apply();
@@ -235,8 +240,27 @@ public class ScreenFade : MonoBehaviour
         if (instance == this) AudioListener.volume = GameSettings.Master;
     }
 
+    void SetFadeTitle(string title)
+    {
+        if (fadeTitle == null && !string.IsNullOrEmpty(title))
+        {
+            fadeTitle = UIKit.CreateText("Fade title", transform, "", 38f, UIStyle.Gold, LootWindow.GameFont);
+            fadeTitle.alignment = TextAlignmentOptions.Center;
+            fadeTitle.raycastTarget = false;
+            UIKit.SetRect(fadeTitle.rectTransform, new Vector2(.1f, .37f), new Vector2(.9f, .63f), Vector2.zero, Vector2.zero);
+        }
+        if (fadeTitle == null) return;
+        fadeTitle.text = title ?? "";
+        fadeTitle.gameObject.SetActive(!string.IsNullOrEmpty(title));
+    }
+
     void Apply()
     {
+        if (fadeTitle != null && fadeTitle.gameObject.activeSelf)
+        {
+            fadeTitle.alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(alpha * 2f));
+            if (alpha <= 0f) SetFadeTitle(null);
+        }
         if (image != null) image.color = new Color(0f, 0f, 0f, Mathf.SmoothStep(0f, 1f, alpha));
     }
 }

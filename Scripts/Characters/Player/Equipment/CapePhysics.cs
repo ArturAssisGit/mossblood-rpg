@@ -227,6 +227,8 @@ public class CapePhysics : MonoBehaviour
         finally { UnityEngine.Profiling.Profiler.EndSample(); }
     }
 
+    bool mountedFoldLive = true; // the saddle fold still has something to fade out (checked each frame while it does)
+
     void UpdateProxyDisplacements(Vector3[] simulated)
     {
         UnityEngine.Profiling.Profiler.BeginSample("CapePhysics.CollisionCorrection");
@@ -276,9 +278,19 @@ public class CapePhysics : MonoBehaviour
             // Correct a coherent patch of cloth, not isolated detailed vertices. Don't smooth across the front opening.
             CapeCollisionMath.SmoothCorrections(collisionCorrections, filteredCorrections, ProxyColumns, ProxyRows, Time.deltaTime);
             // Smooth the broad saddle fold on the 525-point guide, never on each detailed vertex.
-            CapeCollisionMath.SmoothCorrections(mountedCorrections, filteredMountedCorrections, ProxyColumns, ProxyRows, Time.deltaTime);
-            for (int i = 0; i < proxyDisplacements.Length; i++)
-                proxyDisplacements[i] += filteredCorrections[i] + filteredMountedCorrections[i];
+            // On foot (most of the game) the saddle fold is skipped once it has faded out after getting off the horse
+            if (mountedSupportActive || mountedFoldLive)
+            {
+                CapeCollisionMath.SmoothCorrections(mountedCorrections, filteredMountedCorrections, ProxyColumns, ProxyRows, Time.deltaTime);
+                float largest = 0f;
+                for (int i = 0; i < filteredMountedCorrections.Length; i++) largest = Mathf.Max(largest, filteredMountedCorrections[i].sqrMagnitude);
+                mountedFoldLive = mountedSupportActive || largest > 1e-8f;
+                if (!mountedFoldLive) System.Array.Clear(filteredMountedCorrections, 0, filteredMountedCorrections.Length);
+            }
+            if (mountedFoldLive)
+                for (int i = 0; i < proxyDisplacements.Length; i++) proxyDisplacements[i] += filteredCorrections[i] + filteredMountedCorrections[i];
+            else
+                for (int i = 0; i < proxyDisplacements.Length; i++) proxyDisplacements[i] += filteredCorrections[i];
         }
         finally { UnityEngine.Profiling.Profiler.EndSample(); }
     }

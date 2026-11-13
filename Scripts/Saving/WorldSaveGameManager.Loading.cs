@@ -134,6 +134,10 @@ public partial class WorldSaveGameManager
         ShrineSystem.RestoreDiscovered(data.discoveredShrines);
         DiaryProgress.Restore(data.diary);
         WorldActivitySystem.Restore(data.adventures);
+        RoninLeague.Restore(data.league);
+        ArmySystem.Restore(data.army);
+        ExpeditionSystem.Restore(data.expeditions);
+        TimedBuffs.Clear();
         RecipeKnowledge.Restore(data.learnedRecipes);
         Debug.Log($"Game loaded (saved {data.savedAt})");
     }
@@ -172,6 +176,7 @@ public partial class WorldSaveGameManager
                 }
             }
             finally { SoundManager.Muted = false; }
+            gear.SetCapeStowed(data.gear.capeStowed);
         }
         inv.RefreshBackpackGrid();
 

@@ -147,6 +147,11 @@ public partial class EnemyAI_01 : MonoBehaviour
     // ---------- Multiplayer (see MultiplayerSync) ----------
     // On a client: this enemy is a copy of the host's enemy (no AI here, hits are sent to the host)
     [System.NonSerialized] public bool isNetworkMirror;
+    // Set by RoninArena on the ronin you duel: a boss in how it fights, but no introduction, no retry and no reset
+    [System.NonSerialized] public bool arenaDuelist;
+    internal bool holdForMatchStart;
+    // Set by a BattleCombatant on the same object: an army battle chooses who this one fights (null = the world rules)
+    [System.NonSerialized] public BattleCombatant battle;
     [System.NonSerialized] public int netId;
     // A copy was hit by this player: (enemy, damage, attacker position, knockback)
     public static System.Action<EnemyAI_01, float, Vector3, float> MirrorHit;

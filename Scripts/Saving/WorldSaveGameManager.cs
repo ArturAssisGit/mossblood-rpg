@@ -27,6 +27,7 @@ public partial class WorldSaveGameManager : MonoBehaviour
     [Tooltip("Backpack equipped in a NEW game when the option above is on (empty = backpack_01)")] public PlayerItemData startingBackpack;
     [Tooltip("Cape equipped in a NEW game (empty = cape_01)")] public PlayerItemData startingCape;
     [Tooltip("Lantern equipped in a NEW game (empty = lantern_01)")] public PlayerItemData startingLantern;
+    [Tooltip("Coins in the inventory at the start of a NEW game")] [Min(0)] public int startingCoins = 20;
 
     [Header("Saving")]
     [Tooltip("The old single save file: moved into the Saves folder the first time the game runs")] public string saveFileName = "savegame.json";

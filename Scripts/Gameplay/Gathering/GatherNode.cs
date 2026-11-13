@@ -37,8 +37,16 @@ public class GatherNode : MonoBehaviour
     [Tooltip("Objects hidden while empty (e.g. the berries on a bush)")] public GameObject[] hideWhenEmpty;
     [Tooltip("Hide the whole object while empty (e.g. a small rock)")] public bool hideAllWhenEmpty;
 
+    [Header("Drinking (wells)")]
+    [Tooltip("A well: using it always fills your thirst completely, it never runs dry for drinking. The water it gives you to carry (Drops) comes back after Respawn Minutes")]
+    public bool quenchThirst;
+
     public int UsesLeft { get; private set; }
     public bool IsEmpty => UsesLeft <= 0;
+    // Something to do here: items left, or a well you can always drink from
+    public bool Usable => !IsEmpty || quenchThirst;
+    // Minutes until an empty node can be gathered again (-1 = never / not empty)
+    public float MinutesLeft => IsEmpty && refillTime >= 0f ? Mathf.Max(0f, refillTime - Time.time) / 60f : -1f;
 
     private float refillTime = -1f;
     private static readonly List<GatherNode> pendingRespawns = new List<GatherNode>();
@@ -64,6 +72,7 @@ public class GatherNode : MonoBehaviour
         respawnMinutes = source.respawnMinutes;
         hideWhenEmpty = new GameObject[0];
         hideAllWhenEmpty = false;
+        quenchThirst = source.quenchThirst;
         UsesLeft = uses;
     }
 
@@ -71,13 +80,30 @@ public class GatherNode : MonoBehaviour
     public List<KeyValuePair<PlayerItemData, int>> Harvest()
     {
         var result = new List<KeyValuePair<PlayerItemData, int>>();
-        if (IsEmpty || GatherSystem.CombatBlocksGathering) return result;
+        if (GatherSystem.CombatBlocksGathering) return result;
+        if (IsEmpty) return result; // a well already drawn from: you still drink (GatherSystem), no water to carry yet
 
         foreach (GatherDrop drop in drops)
         {
             if (drop == null || drop.item == null || Random.value > drop.chance) continue;
             int amount = Random.Range(drop.minAmount, Mathf.Max(drop.minAmount, drop.maxAmount) + 1);
             if (amount > 0) result.Add(new KeyValuePair<PlayerItemData, int>(drop.item, amount));
+        }
+        // Never empty-handed: when every roll failed (all drops with a chance below 1), one of them is given anyway,
+        // picked by its chance, at its smallest amount
+        if (result.Count == 0)
+        {
+            float total = 0f;
+            foreach (GatherDrop drop in drops) if (drop != null && drop.item != null) total += Mathf.Max(.01f, drop.chance);
+            float roll = Random.value * total;
+            foreach (GatherDrop drop in drops)
+            {
+                if (drop == null || drop.item == null) continue;
+                roll -= Mathf.Max(.01f, drop.chance);
+                if (roll > 0f) continue;
+                result.Add(new KeyValuePair<PlayerItemData, int>(drop.item, Mathf.Max(1, drop.minAmount)));
+                break;
+            }
         }
 
         UsesLeft--;

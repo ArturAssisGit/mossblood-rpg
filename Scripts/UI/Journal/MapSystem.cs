@@ -132,6 +132,9 @@ public partial class MapSystem : MonoBehaviour
     {
         if (Instance != this || minimapRoot == null) return;
         DiaryProgress.Tick();
+        RoninLeague.Tick();
+        ArmySystem.Tick();
+        ExpeditionSystem.Tick();
         if (!FindPlayer())
         {
             if (bigMapOpen) SetBigMap(false);

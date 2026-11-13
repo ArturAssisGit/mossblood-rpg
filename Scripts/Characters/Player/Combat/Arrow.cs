@@ -11,20 +11,27 @@ public class Arrow : MonoBehaviour
     private Vector3 previousPosition;
     private Collider[] arrowColliders;
     private readonly RaycastHit[] sweepHits=new RaycastHit[32];
+    // Shared by every arrow: no new lists per shot, one material for all default arrows (it was one new material per arrow)
+    static readonly System.Collections.Generic.List<Collider> shooterColliders=new System.Collections.Generic.List<Collider>(16);
+    static Material defaultMaterial;
 
     public void Launch(Vector3 velocity, float arrowDamage, Transform shooter)
     {
         rb = GetComponent<Rigidbody>();
         hasHit=false;launched=true;previousPosition=transform.position;
-        arrowColliders=GetComponentsInChildren<Collider>();
+        if(arrowColliders==null)arrowColliders=GetComponentsInChildren<Collider>(); // the arrow's own parts never change
         damage = arrowDamage;
         this.shooter = shooter;
         shotByEnemy = shooter != null && shooter.GetComponentInParent<EnemyAI_01>() != null;
 
         if (shooter != null)
+        {
+            shooter.GetComponentsInChildren(shooterColliders);
             foreach (Collider mine in arrowColliders)
-                foreach (Collider theirs in shooter.GetComponentsInChildren<Collider>())
-                    Physics.IgnoreCollision(mine, theirs);
+                foreach (Collider theirs in shooterColliders)
+                    if (mine != null && theirs != null) Physics.IgnoreCollision(mine, theirs);
+            shooterColliders.Clear();
+        }
 
         rb.isKinematic = false;
         rb.useGravity = true;
@@ -82,7 +89,15 @@ public class Arrow : MonoBehaviour
         if(hasHit)return;
         hasHit=true; // Callback and swept contact can never apply the same arrow twice.
         SoundManager.Play(Sfx.ArrowHit,point);
-        if(hit!=null && shotByEnemy)
+        // Army battle: an arrow of one side hurts only the other side's fighters
+        EnemyAI_01 shooterAi=shooter!=null?shooter.GetComponentInParent<EnemyAI_01>():null;
+        EnemyAI_01 struck=hit!=null?hit.GetComponentInParent<EnemyAI_01>():null;
+        if(struck!=null && (struck.battle!=null || (shooterAi!=null && shooterAi.battle!=null)))
+        {
+            bool hostile=shooterAi!=null?BattleCombatant.Hostile(shooterAi,struck):!BattleCombatant.IsAlly(struck);
+            if(hostile && !struck.IsDead)struck.TakeDamage(damage,HitSource(),0f);
+        }
+        else if(hit!=null && shotByEnemy)
         {
             PlayerStats stats=hit.GetComponentInParent<PlayerStats>();
             var controller=hit.GetComponentInParent<CharacterController>();
@@ -143,7 +158,8 @@ public class Arrow : MonoBehaviour
         shaft.transform.SetParent(arrow.transform, false);
         shaft.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         shaft.transform.localScale = new Vector3(0.02f, 0.4f, 0.02f);
-        shaft.GetComponent<Renderer>().sharedMaterial = ParticleMaterials.CreateSolid("Arrow", new Color(0.42f, 0.28f, 0.14f)); // no pink in builds
+        if (defaultMaterial == null) defaultMaterial = ParticleMaterials.CreateSolid("Arrow", new Color(0.42f, 0.28f, 0.14f)); // no pink in builds
+        shaft.GetComponent<Renderer>().sharedMaterial = defaultMaterial;
 
         arrow.AddComponent<Arrow>();
         return arrow;

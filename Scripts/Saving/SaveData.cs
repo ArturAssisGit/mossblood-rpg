@@ -11,6 +11,9 @@ public class SaveData
     public int version = 1;
     public DiarySave diary = new DiarySave();
     public AdventureSave adventures = new AdventureSave();
+    public LeagueSave league = new LeagueSave();
+    public ArmySave army = new ArmySave();
+    public ExpeditionSave expeditions = new ExpeditionSave();
     [Tooltip("Recipe IDs learned by this character (individual progress, including multiplayer)")]
     public List<string> learnedRecipes = new List<string>();
     public string sceneName;
@@ -116,6 +119,7 @@ public class GearData
     public string lantern;
     public string cape;
     public string capeUpgrade;
+    public bool capeStowed;
     public string weaponUpgrade;
     public string chestUpgrade;
     public string helmetUpgrade;

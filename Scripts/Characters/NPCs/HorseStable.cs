@@ -210,7 +210,12 @@ public partial class HorseStable : MonoBehaviour
     void OnDisable() => All.Remove(this);
 
     void Start() => idle.Begin(idleClip, nameof(HorseStable));
-    void LateUpdate() => idle.Hold();
+    void LateUpdate()
+    {
+        // Scripts recompiled while playing lose this (Awake doesn't run again): make it again instead of failing every frame
+        if (idle == null) { idle = new NpcIdle(transform); idle.Begin(idleClip, nameof(HorseStable)); }
+        idle.Hold();
+    }
     void OnDestroy() => idle?.Destroy();
 
     public void FaceTowards(Vector3 position)

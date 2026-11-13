@@ -125,6 +125,7 @@ public partial class PlayerStats : MonoBehaviour
     void Update()
     {
         TickSurvivalStatus();
+        TimedBuffs.Tick(this); // consumable effects: their list on screen, and they end on death
         if (Time.unscaledTime >= nextTemperatureCheck) RefreshBodyTemperature();
         UpdateNeeds();
         bool lowNeeds = IsHungry || IsThirsty;
@@ -148,10 +149,10 @@ public partial class PlayerStats : MonoBehaviour
     {
         if (currentHealth <= 0f) return;
 
-        currentHunger = Mathf.Max(currentHunger - hungerPerMinute * HatPassives.Reduction(this,HatPassive.SlowerHunger) / 60f * Time.deltaTime, 0f);
+        currentHunger = Mathf.Max(currentHunger - hungerPerMinute * HatPassives.Reduction(this,HatPassive.SlowerHunger) * TimedBuffs.NeedDrain / 60f * Time.deltaTime, 0f);
         float thirstRate = thirstPerMinute * HatPassives.Reduction(this,HatPassive.SlowerThirst) * (ItemUpgrades.Active(OniSpirit.Kappa) ? ItemUpgrades.KappaThirstMultiplier : 1f);
-        currentThirst = Mathf.Max(currentThirst - thirstRate / 60f * Time.deltaTime, 0f);
-        if (!ShrineSystem.IsPraying) currentSpirit = Mathf.Max(currentSpirit - spiritPerMinute * HatPassives.Reduction(this,HatPassive.SlowerSpiritDrain) / 60f * Time.deltaTime, 0f);
+        currentThirst = Mathf.Max(currentThirst - thirstRate * TimedBuffs.NeedDrain / 60f * Time.deltaTime, 0f);
+        if (!ShrineSystem.IsPraying) currentSpirit = Mathf.Max(currentSpirit - spiritPerMinute * HatPassives.Reduction(this,HatPassive.SlowerSpiritDrain) * TimedBuffs.SpiritDrain / 60f * Time.deltaTime, 0f);
 
         // Starving or dehydrated: slowly lose health
         int emptyNeeds = (currentHunger <= 0f ? 1 : 0) + (currentThirst <= 0f ? 1 : 0);
@@ -322,6 +323,7 @@ public partial class PlayerStats : MonoBehaviour
 
     public bool TryConsumeStamina(float cost)
     {
+        cost *= TimedBuffs.StaminaCost;
         if (currentStamina < cost) return false;
         currentStamina -= cost;
         return true;
@@ -357,6 +359,7 @@ public partial class PlayerStats : MonoBehaviour
             else Debug.Log("Not enough stamina to block!");
         }
 
+        amount *= TimedBuffs.DamageTaken; // a guard tonic
         float defense = PlayerEquipmentManager.Instance != null ? PlayerEquipmentManager.Instance.TotalDefense : 0f;
         float finalDamage = amount * defenseScaling / (defenseScaling + defense);
         if (ItemUpgrades.Active(OniSpirit.Gashadokuro)) finalDamage *= ItemUpgrades.GashadokuroDamageTaken; // Oni Stone perk

@@ -7,6 +7,23 @@ using UnityEngine.SceneManagement;
 // flat distances, terrain height and slope, hour ranges, allowed areas / safe places and weighted random picks.
 public static class WorldUtil
 {
+    // ---------- Physics queries without garbage ----------
+    // Shared buffers for the "every hit" queries that run often (ground under a point, the camp camera, placing objects).
+    // Only used on the main thread, one query at a time: read the hits before the next query.
+    public static readonly RaycastHit[] HitBuffer = new RaycastHit[64];
+    public static readonly Collider[] ColliderBuffer = new Collider[64];
+
+    // Sorts the first 'count' hits by distance, nearest first (few hits: an insertion sort, no allocation)
+    public static void SortHits(RaycastHit[] hits, int count)
+    {
+        for (int i = 1; i < count; i++)
+        {
+            RaycastHit h = hits[i]; int j = i - 1;
+            while (j >= 0 && hits[j].distance > h.distance) { hits[j + 1] = hits[j]; j--; }
+            hits[j + 1] = h;
+        }
+    }
+
     // A tree / bush / bamboo placed as an object. Looks at the object and every parent, so it works whether the prefab
     // sits at the top of the Hierarchy or inside organising folders ("Zona 1"...). Folder names must not contain these words.
     public static bool IsVegetation(Transform t, bool includeBamboo = true)

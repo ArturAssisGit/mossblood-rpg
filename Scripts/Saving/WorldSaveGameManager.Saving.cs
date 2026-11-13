@@ -33,7 +33,7 @@ public partial class WorldSaveGameManager
         player = FindPlayer();
         if (player == null || PlayerInventoryManager.Instance == null) return false;
         if (TitleScreenManager.IsOpen) return false; // never save while in the main menu
-        return !player.IsDead && !RespawnSystem.IsDeathScreenOpen;
+        return !player.IsDead && !RespawnSystem.IsDeathScreenOpen && !RoninArena.InDuel && !BattleField.InWar; // a duel or a battle is never saved half-fought
     }
 
     // Auto = autosave (only the last few are kept), Quick = F5, Manual = the Save button of the pause menu
@@ -78,6 +78,7 @@ public partial class WorldSaveGameManager
                 gear.PrepareCapeEquipment();
                 data.gear.cape = IdIn(gear.capeSlotUI);
                 data.gear.capeUpgrade = UpgradeIn(gear.capeSlotUI);
+                data.gear.capeStowed = gear.CapeStowed;
                 data.gear.weapon = IdIn(gear.weaponSlotUI);
                 data.gear.chest = IdIn(gear.chestSlotUI);
                 data.gear.helmet = IdIn(gear.helmetSlotUI);
@@ -127,6 +128,9 @@ public partial class WorldSaveGameManager
             data.discoveredShrines = ShrineSystem.CaptureDiscovered();
             data.diary = DiaryProgress.Capture();
             data.adventures = WorldActivitySystem.Capture();
+            data.league = RoninLeague.Capture();
+            data.army = ArmySystem.Capture();
+            data.expeditions = ExpeditionSystem.Capture();
             data.learnedRecipes = RecipeKnowledge.Capture();
 
             // Scene loot bags/chests: what is left inside (emptied bags are gone, so they are simply missing from the list)

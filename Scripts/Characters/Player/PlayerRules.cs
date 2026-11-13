@@ -9,7 +9,7 @@ public static class CombatFeelRules
     public static float Travel(float authored)=>Mathf.Clamp(authored,0,.5f)*1.2f;
     public static float Recoil(float measured,float authored)=>Mathf.Clamp(measured,0,Travel(authored));
     public static float Weight(float multiplier)=>Mathf.InverseLerp(1f,2.4f,multiplier);
-    public static float ContactPause(float authored,float weight)=>Mathf.Clamp(authored,0,.1f)*Mathf.Lerp(.65f,1f,Mathf.Clamp01(weight));
+    public static float ContactPause(float authored,float weight)=>Mathf.Clamp(authored,0,.12f)*Mathf.Lerp(.9f,1.35f,Mathf.Clamp01(weight)); // a little longer: cuts land harder
     // A single bounded pulse, zero at contact and at recovery, rather than continuous shaking.
     public static float Impulse(float age)
     {
@@ -55,12 +55,15 @@ public enum PrecisionAction : byte { Counter, Guard, Riposte }
 public static class PrecisionCombatRules
 {
     public const float GuardWindow=.09f, RiposteWindow=.55f, Rearm=.40f, ExecutionRecovery=.75f;
-    // Counter (click or released hold, katana and small swords): opens once 30% of the enemy's swing has played, stays
-    // open for the remaining 70% until the blow lands. (Very short swings still give at least the last .09 s.)
-    public const float CounterOpensAt=.30f;
+    // Counter (click or released hold, katana and small swords): opens once 43% of the enemy's swing has played, stays
+    // open for the remaining 57% until the blow lands. (Very short swings still give at least the last .09 s.)
+    public const float CounterOpensAt=.43f; // window = the last 57% of the swing (10% shorter than before)
+    // Perfect guard (Q): the last 40% of the enemy's swing, up to the blow. (Very short swings still give the last .09 s.)
+    public const float GuardOpensAt=.60f;
     public static bool CounterWindow(float now,float began,float contact)
         => contact>began && now>=Mathf.Min(Mathf.Lerp(began,contact,CounterOpensAt),contact-.09f) && now<contact;
-    public static bool GuardTiming(float now,float contact)=>contact>=now && contact-now<=GuardWindow;
+    public static bool GuardTiming(float now,float began,float contact)
+        => contact>=now && now>=Mathf.Min(contact>began?Mathf.Lerp(began,contact,GuardOpensAt):contact,contact-GuardWindow);
     public static bool Fresh(float now,float previous)=>now>=previous+Rearm;
     // Sword counters only ignore a double click (an earlier click, even a normal swing just before, never locks it out)
     public const float CounterRearm=.15f;

@@ -2,6 +2,7 @@
 using System;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine.Assemblies;
 
 // Silences the "Checking lifetime of RenderTextures but m_AgeCheckAdded = false" error spam from the Terrain Tools package.
 // It happens because the package keeps a static flag that gets out of sync when Domain Reload is disabled.
@@ -24,7 +25,7 @@ static class TerrainToolsAgeCheckFix
         {
             if (searched) return;
             searched = true;
-            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly asm in CurrentAssemblies.GetLoadedAssemblies())
             {
                 Type t = asm.GetType("UnityEditor.TerrainTools.RTUtils");
                 if (t == null) continue;

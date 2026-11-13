@@ -48,7 +48,12 @@ public partial class ShopNpc : MonoBehaviour
         idle.Begin(idleClip, nameof(ShopNpc));
         RefreshRotation();
     }
-    void LateUpdate() => idle.Hold();
+    void LateUpdate()
+    {
+        // Scripts recompiled while playing lose this (Awake doesn't run again): make it again instead of failing every frame
+        if (idle == null) { idle = new NpcIdle(transform); idle.Begin(idleClip, nameof(ShopNpc)); }
+        idle.Hold();
+    }
     void OnDestroy() => idle?.Destroy();
 
     public int BuyPrice(PlayerItemData item) => item == null ? 0 : ServicePriceRules.Buy(item.price, buyPriceMultiplier);

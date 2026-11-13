@@ -10,6 +10,10 @@ public class NpcMotionSet : ScriptableObject
     [Tooltip("Walking speed when the clip does not tell it (m/s)")] [Min(.1f)] public float fallbackSpeed = .95f;
     [Tooltip("Multiplies the walking speed (lower if the feet slide forward, higher if they slide back)")] [Range(.5f, 1.5f)] public float speedScale = 1f;
 
+    [Header("Running (travellers fleeing from enemies)")]
+    [Tooltip("An in-place humanoid run (e.g. Character_Template@Slow Run). Empty = they hurry with the walk")] public AnimationClip runClip;
+    [Tooltip("Running speed when the clip does not tell it (m/s)")] [Min(1f)] public float fallbackRunSpeed = 3.2f;
+
     [Header("Things they do")]
     [Tooltip("Crouching to pick something up (played once)")] public AnimationClip gatherClip;
     [Tooltip("Sitting down on the ground")] public AnimationClip sitDownClip;

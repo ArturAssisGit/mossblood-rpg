@@ -110,7 +110,7 @@ public class BackpackPickupPrompt : MonoBehaviour
 
     DroppedBackpack FindTarget()
     {
-        if (DroppedBackpack.All.Count == 0 || !FindPlayer()) return null;
+        if (DroppedBackpack.All.Count == 0 || RoninArena.HoldsPlayer || BattleField.HoldsPlayer || !FindPlayer()) return null;
         PlayerEquipmentManager gear = PlayerEquipmentManager.Instance;
         if (gear == null || gear.IsOpen || LootWindow.IsOpen || PlacementSystem.IsPlacing || HorseMount.PlayerMounted || PlayerFinisher.IsActive || ScreenFade.IsActive) return null;
         if (stats != null && stats.IsDead) return null;

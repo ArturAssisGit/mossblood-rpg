@@ -36,6 +36,9 @@ public class PlayerItemData : ScriptableObject
     public Material[] scabbardMaterials;
     [Tooltip("Off = this katana is worn without a scabbard")] public bool showScabbard = true;
 
+    [Header("Renown (capes, hats... anything worn)")]
+    [Tooltip("% more honor from fights in the Ronin League while worn. Adds up over everything worn")] [Range(0f, 25f)] public float renownPercent;
+
     [Header("Backpack Perks (only used by backpacks)")]
     [Tooltip("Press + and pick the perks this backpack gives while worn")]
     public List<BackpackPerk> backpackPerks = new List<BackpackPerk>();
@@ -68,6 +71,13 @@ public class PlayerItemData : ScriptableObject
     [Range(0f,600f)]public float warmthSeconds;
     [Tooltip("Stops bleeding without restoring health. Used by bandages.")]
     public bool stopsBleeding;
+
+    [Header("Special Effect (consumables) - see ItemEffects.cs")]
+    [Tooltip("What using it does besides food / water / warmth (None = nothing more)")] public ItemEffect effect = ItemEffect.None;
+    [Tooltip("Strength of the effect: honor, spirit, percent for timed effects, the fewest coins for a Coin Purse")] public float effectPower;
+    [Tooltip("Seconds a timed effect lasts (the most coins for a Coin Purse)")] public float effectSeconds;
+    [Tooltip("Bundle only: what can be inside (rolled like a loot table)")] public List<LootEntry> bundleContents = new List<LootEntry>();
+    public bool HasEffect => effect != ItemEffect.None;
 
     [Header("Recipe Scroll (consumables)")]
     [Tooltip("Using this consumable permanently teaches this recipe to the current character. Leave empty for ordinary food/drink.")]

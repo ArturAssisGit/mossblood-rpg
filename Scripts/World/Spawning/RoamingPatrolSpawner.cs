@@ -27,8 +27,26 @@ public class RoamingPatrolSpawner : MonoBehaviour
         [Range(0f, 24f)] public float toHour = 0f;
     }
 
+    // In one zone, some enemies are swapped for others (e.g. zone III: enemy_01 -> enemy_02). Same groups, same counts
+    [System.Serializable]
+    public class PrefabSwap
+    {
+        public GameObject from;
+        public GameObject to;
+    }
+
+    [System.Serializable]
+    public class ZoneVariant
+    {
+        [Tooltip("Chapter / zone number (1 = The Pilgrim Valley, 2 = The Southern Coast, 3 = The River Lands, 4 = The Old Battlefield, 5 = The Fox Woods)")]
+        [Min(1)] public int zone = 3;
+        [Tooltip("In this zone, every 'From' enemy in the Patrol Groups is replaced by its 'To'")] public List<PrefabSwap> swaps = new List<PrefabSwap>();
+    }
+
     [Header("Patrols")]
     public List<PatrolGroup> patrolGroups = new List<PatrolGroup>();
+    [Tooltip("Other enemies in some zones: the patrol keeps its group and counts, only the enemy prefabs change. The zone is the one where the patrol appears (or where the player stands)")]
+    public List<ZoneVariant> zoneVariants = new List<ZoneVariant>();
 
     [Header("How often (time)")]
     [Tooltip("Seconds between two tries (a random value between X and Y)")] public Vector2 secondsBetweenTries = new Vector2(90f, 180f);
@@ -82,6 +100,37 @@ public class RoamingPatrolSpawner : MonoBehaviour
             if (g != null)
                 foreach (PatrolMember m in g.members)
                     if (m != null && m.prefab != null) yield return m.prefab;
+        foreach (ZoneVariant v in zoneVariants)
+            if (v != null)
+                foreach (PrefabSwap s in v.swaps)
+                    if (s != null && s.to != null) yield return s.to;
+    }
+
+    // ---------- Zones ----------
+
+    // The zone number (1-5) whose land this point is on; 0 = none (sea, a bridge...)
+    static int ZoneAt(Vector3 p)
+    {
+        foreach (WorldZone zone in WorldZone.All)
+        {
+            if (zone == null || zone.DistanceTo(p) > 0.01f) continue;
+            int index = MainQuest.RegionIndex(zone.zoneName);
+            if (index >= 0) return index + 1;
+        }
+        return 0;
+    }
+
+    // The prefab to use in this zone (the swap, or the prefab itself)
+    GameObject PrefabFor(GameObject prefab, int zone)
+    {
+        if (prefab == null || zone <= 0) return prefab;
+        foreach (ZoneVariant v in zoneVariants)
+        {
+            if (v == null || v.zone != zone) continue;
+            foreach (PrefabSwap s in v.swaps)
+                if (s != null && s.from == prefab && s.to != null) return s.to;
+        }
+        return prefab;
     }
 
     void Update()
@@ -162,7 +211,7 @@ public class RoamingPatrolSpawner : MonoBehaviour
         bool anyPrefab = false;
         foreach (PatrolMember m in group.members) if (m != null && m.prefab != null && m.maxCount > 0) anyPrefab = true;
         if (!anyPrefab) { lastFailure = "group '" + group.name + "' has no Prefab filled (or the counts are 0)."; return false; }
-        int noStart = 0, noEnd = 0, tooClose = 0, safe = 0, noPath = 0;
+        int noStart = 0, noEnd = 0, tooClose = 0, safe = 0, noPath = 0, otherIsland = 0;
         float scale = HorseMount.PlayerMounted ? mountedDistanceMultiplier : 1f;
 
         Vector3 forward = playerVelocity.sqrMagnitude > 0.25f ? playerVelocity.normalized : Flat(player.forward).normalized;
@@ -185,6 +234,8 @@ public class RoamingPatrolSpawner : MonoBehaviour
 
             if (!SpawnPlacement.GroundNavPoint(start, 12f, out Vector3 startPoint)) { noStart++; continue; }
             if (!SpawnPlacement.GroundNavPoint(end, 15f, out Vector3 endPoint)) { noEnd++; continue; }
+            // Only on the island you are on (never across the water, never on a closed island)
+            if (!WorldZone.SameIslandAsPlayer(startPoint) || !WorldZone.SameIslandAsPlayer(endPoint)) { otherIsland++; continue; }
             NavMeshHit startHit = new NavMeshHit { position = startPoint }, endHit = new NavMeshHit { position = endPoint };
             if (SpawnPlacement.GroundNavPoint(player.position, 4f, out Vector3 playerPoint) && !SpawnPlacement.IsGoodSpot(startPoint, playerPoint)) { noPath++; continue; } // roof / closed place
             if (Flat(startHit.position - player.position).magnitude < minSpawnDistance * scale) { tooClose++; continue; }
@@ -195,7 +246,7 @@ public class RoamingPatrolSpawner : MonoBehaviour
             Spawn(group, startHit.position, endHit.position, march);
             return true;
         }
-        lastFailure = $"no good place in 10 tries: no NavMesh at the start {noStart}x, no NavMesh at the end {noEnd}x, too close {tooClose}x, near a Safe Place {safe}x, no path {noPath}x. (Is the NavMesh baked where you walk?)";
+        lastFailure = $"no good place in 10 tries: no NavMesh at the start {noStart}x, no NavMesh at the end {noEnd}x, too close {tooClose}x, near a Safe Place {safe}x, no path {noPath}x, another / closed island {otherIsland}x. (Is the NavMesh baked where you walk?)";
         return false;
     }
 
@@ -205,12 +256,15 @@ public class RoamingPatrolSpawner : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, march);
         Quaternion facing = Quaternion.LookRotation(march);
         int index = 0, normalPrefix=0;
+        int zone = ZoneAt(start);
+        if (zone == 0 && player != null) zone = ZoneAt(player.position);
 
         foreach (PatrolMember member in group.members)
         {
             if (member == null || member.prefab == null) continue;
+            GameObject prefab = PrefabFor(member.prefab, zone);
             int baseCount = Random.Range(member.minCount, Mathf.Max(member.minCount, member.maxCount) + 1);
-            bool boss=CoopDifficulty.IsBoss(member.prefab);
+            bool boss=CoopDifficulty.IsBoss(prefab);
             int count=CoopBalanceRules.GroupQuantity(baseCount,normalPrefix,CoopDifficulty.Players,boss);
             if(!boss)normalPrefix+=baseCount;
             for (int i = 0; i < count; i++, index++)
@@ -222,7 +276,7 @@ public class RoamingPatrolSpawner : MonoBehaviour
 
                 Vector3 spawnAt = start + offset;
                 spawnAt = NavMesh.SamplePosition(SpawnPlacement.OnTerrain(spawnAt), out NavMeshHit hit, 3f, NavMesh.AllAreas) && SpawnPlacement.IsGoodSpot(hit.position, start) ? hit.position : start;
-                GameObject go = Instantiate(member.prefab, spawnAt + Vector3.up * 0.1f, facing);
+                GameObject go = Instantiate(prefab, spawnAt + Vector3.up * 0.1f, facing);
                 EnemyAI_01 ai = go.GetComponent<EnemyAI_01>();
                 if (ai == null) continue;
                 ai.StartPatrol(end + offset);
@@ -233,7 +287,7 @@ public class RoamingPatrolSpawner : MonoBehaviour
         if (patrol.members.Count > 0)
         {
             active.Add(patrol);
-            Debug.Log($"Roaming patrol '{group.name}' ({patrol.members.Count} enemies) appeared {Flat(start - player.position).magnitude:0} m from the player.");
+            Debug.Log($"Roaming patrol '{group.name}' ({patrol.members.Count} enemies, zone {(zone > 0 ? zone.ToString() : "-")}) appeared {Flat(start - player.position).magnitude:0} m from the player.");
         }
     }
 

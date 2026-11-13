@@ -198,7 +198,7 @@ public partial class NpcDialogue : MonoBehaviour
             End(false);
             return;
         }
-        if (ShopWindow.IsOpen || StableWindow.IsOpen || DeliverySystem.IsDialogOpen || VillageRequestWindow.IsOpen) return;
+        if (ShopWindow.IsOpen || StableWindow.IsOpen || DeliverySystem.IsDialogOpen || VillageRequestWindow.IsOpen || ArenaWindow.IsOpen || BattleWindow.IsOpen) return;
         ShowMenu(backLine); // the window was closed (or had nothing to show): back to the options
     }
 
@@ -210,6 +210,8 @@ public partial class NpcDialogue : MonoBehaviour
         StableWindow.CloseIfOpen();
         DeliverySystem.CloseIfOpen();
         VillageRequestWindow.CloseIfOpen();
+        ArenaWindow.CloseIfOpen();
+        BattleWindow.CloseIfOpen();
         mode = Mode.None;
         endFrame = Time.frameCount;
         npc = null;

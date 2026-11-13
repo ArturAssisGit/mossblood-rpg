@@ -41,7 +41,7 @@ public class AnimatorCulling : MonoBehaviour
             || a.GetComponentInParent<HorseMount>() != null || a.GetComponentInParent<RemotePlayerAvatar>() != null) return false;
         return a.GetComponentInParent<NpcDialogue>() != null || a.GetComponentInParent<ShopNpc>() != null
             || a.GetComponentInParent<DeliveryNpc>() != null || a.GetComponentInParent<NpcTalk>() != null
-            || a.GetComponentInParent<FoxAI>() != null || a.GetComponentInParent<BirdAI>() != null
+            || a.GetComponentInParent<RoamingTraveler>() != null || a.GetComponentInParent<FoxAI>() != null || a.GetComponentInParent<BirdAI>() != null
             || a.GetComponentInParent<GroveBirds>() != null || a.GetComponentInParent<DistantSkyBirds>() != null;
     }
 }

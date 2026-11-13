@@ -243,6 +243,15 @@ public partial class PlayerItemSlot : MonoBehaviour, IPointerClickHandler, IPoin
         if (inventory == null || (!inventory.IsStorageSlot(this) && (owner == null || !owner.IsGearSlot(this)))) return;
         if (confirmSlot != null && confirmSlot != this) CancelAnyConfirmation();
 
+        // Ctrl + click: straight to the other bag (inventory <-> backpack)
+        if (eventData.button == PointerEventData.InputButton.Left && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && inventory.IsStorageSlot(this))
+        {
+            CancelAnyConfirmation();
+            if (inventory.QuickTransfer(this) > 0) UISounds.Drop(); else UISounds.Error();
+            ItemTooltip.Show(itemData);
+            return;
+        }
+
         switch (eventData.button)
         {
             case PointerEventData.InputButton.Left:

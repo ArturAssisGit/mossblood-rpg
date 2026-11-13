@@ -372,6 +372,8 @@ public class LootWindow : MonoBehaviour
         Rebuild();
     }
 
+    public static void CloseIfOpen() { if (IsOpen) Instance.Close(); }
+
     void Close()
     {
         windowOpen = false;
@@ -491,6 +493,7 @@ public class LootWindow : MonoBehaviour
         if(item.type==ItemType.Weapon && item.swordAbility!=null)type+="  ·  [F] "+item.swordAbility.displayName+" — recharge: 8 hits";
         if (item.weaponDamage > 0f) type += $"  ·  Damage {item.weaponDamage:0}";
         if (item.armorDefense > 0f) type += $"  ·  Defense {item.armorDefense:0}";
+        if (item.renownPercent > 0f) type += $"  ·  Renown +{item.renownPercent:0.#}%";
         if (item.type == ItemType.Backpack && item.backpackPerks != null)
             foreach (BackpackPerk perk in item.backpackPerks) type += "  ·  " + PerkName(perk);
         string hatPassive=HatPassives.Describe(item);
@@ -503,6 +506,8 @@ public class LootWindow : MonoBehaviour
             if (item.waterRestore > 0f) type += $"  ·  +{item.waterRestore:0} Water";
             if(item.warmthSeconds>0)type+=$"  ·  Warmth {item.warmthSeconds:0}s";
             if(item.stopsBleeding)type+="  ·  Stops bleeding (no healing)";
+            string effect = ItemEffects.Describe(item);
+            if (!string.IsNullOrEmpty(effect)) type += "  ·  " + effect;
         }
         return type;
     }
