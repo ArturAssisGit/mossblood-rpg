@@ -72,7 +72,8 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 - Send a party on an expedition and collect spoils from the journal
 
 **Menus, saves and online**
-- Main menu with a smooth fade into the father's letter while the world loads
+- New games open with Daigo's letter in four pages while the world loads
+- A first-steps tutorial covers movement, combat and the journal. Press F1 to skip it.
 - Save list like *The Witcher* (quick, manual, rotating autosaves), atomic writes
 - Online co-op with join codes (Unity Relay): each player keeps their own save; time, weather and enemies are shared
 
@@ -103,7 +104,7 @@ Each island is a chapter. You ask its people about the Onistone; each knows one 
 | Seasons and weather | `Scripts/World/Seasons/*`, `Scripts/World/Environment/Weather/*` |
 | Performance | `Scripts/Rendering/*`, `Scripts/World/Rendering/WorldDistanceVisibility.cs`, `Scripts/World/WorldCleanup.cs` |
 | Ronin League and arena | [Activities](Scripts/Gameplay/Activities) |
-| War and expeditions | `ArmySystem`, `BattleField`, `ExpeditionSystem` |
+| War and expeditions | [Army](Scripts/Gameplay/Army) |
 | Horses | `Scripts/Gameplay/Horses/HorseMount*.cs` |
 | Camp, crafting | `Scripts/Gameplay/Camp/*`, `Scripts/UI/Gameplay/CraftingWindow*.cs` |
 | Audio | `Scripts/Audio/*` |
