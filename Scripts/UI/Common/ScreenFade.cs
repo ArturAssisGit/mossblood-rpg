@@ -25,6 +25,11 @@ public class ScreenFade : MonoBehaviour
     private KeyCode introKey = KeyCode.Space;
     private float introTime, readyTime, closeTime;
     private TextMeshProUGUI introText, introHint;
+    private string[] introPages = new string[0];
+    private int introPage;
+    private float pageTime, pageOut = -1f;
+    private string introFinalHint = "";
+    private const float PageOutSeconds = 0.45f, PageInSeconds = 1.1f, PageMinTime = 0.8f;
     private const float IntroTextFade = 2.5f, IntroHintDelay = 1.2f, IntroMinTime = 1.5f, IntroCloseSeconds = 0.9f;
     private static readonly Color LetterColor = new Color(0.93f, 0.89f, 0.80f, 0f), HintColor = new Color(0.80f, 0.74f, 0.62f, 0f);
 
@@ -75,7 +80,11 @@ public class ScreenFade : MonoBehaviour
         f.introClosing = false;
         f.introReady = false;
         f.holding = true;
-        f.BuildIntro(text, hint, fontSize);
+        // Pages (\f between them) come one at a time: the player reads and goes on at his pace
+        f.introPages = (text ?? "").Split('\f');
+        f.introPage = 0; f.pageTime = 0f; f.pageOut = -1f;
+        f.introFinalHint = f.introPages.Length > 1 ? $"Press {skipKey.ToString().ToUpperInvariant()} to begin" : hint;
+        f.BuildIntro(f.introPages[0], hint, fontSize);
         if (ready) SetIntroReady();
     }
 
@@ -215,11 +224,40 @@ public class ScreenFade : MonoBehaviour
             if (closeTime >= IntroCloseSeconds) EndIntro();
             return;
         }
-        if (introText != null) introText.alpha = Mathf.SmoothStep(0f, 1f, introTime / IntroTextFade);
+        pageTime += Mathf.Min(Time.unscaledDeltaTime, 0.1f);
+        float pulse = 0.55f + 0.25f * Mathf.Sin(Time.unscaledTime * 1.8f); // the hint breathes slowly (never blinking)
+        // Turning the page: the words fade out, the next page fades in
+        if (pageOut >= 0f)
+        {
+            pageOut += Mathf.Min(Time.unscaledDeltaTime, 0.1f);
+            float k = 1f - Mathf.SmoothStep(0f, 1f, pageOut / PageOutSeconds);
+            if (introText != null) introText.alpha = Mathf.Min(introText.alpha, k);
+            if (introHint != null) introHint.alpha = Mathf.Min(introHint.alpha, k);
+            if (pageOut >= PageOutSeconds)
+            {
+                introPage = Mathf.Min(introPage + 1, introPages.Length - 1);
+                if (introText != null) introText.text = introPages[introPage];
+                pageTime = 0f; pageOut = -1f;
+            }
+            return;
+        }
+        if (introText != null) introText.alpha = Mathf.SmoothStep(0f, 1f, pageTime / (introPage == 0 ? IntroTextFade : PageInSeconds));
+        bool lastPage = introPage >= introPages.Length - 1;
+        if (!lastPage)
+        {
+            // Any page but the last can be turned while the world is still loading
+            if (introHint != null)
+            {
+                introHint.text = $"{introKey.ToString().ToUpperInvariant()}  -  next      {introPage + 1} / {introPages.Length}";
+                introHint.alpha = Mathf.Clamp01((pageTime - PageMinTime) / 0.8f) * pulse;
+            }
+            if (pageTime > PageMinTime && Continue()) pageOut = 0f;
+            return;
+        }
+        if (introHint != null && introHint.text != introFinalHint) introHint.text = introFinalHint;
         if (!introReady) { if (introHint != null) introHint.alpha = 0f; return; }
-        float shown = introTime - Mathf.Max(readyTime, IntroHintDelay);
-        // the hint breathes slowly (a soft pulse, never blinking)
-        if (introHint != null) introHint.alpha = Mathf.Clamp01(shown / 1.2f) * (0.55f + 0.25f * Mathf.Sin(Time.unscaledTime * 1.8f));
+        float shown = Mathf.Min(introTime - Mathf.Max(readyTime, IntroHintDelay), pageTime - PageMinTime);
+        if (introHint != null) introHint.alpha = Mathf.Clamp01(shown / 1.2f) * pulse;
         if (introTime > IntroMinTime && shown > 0f && Continue()) { introClosing = true; closeTime = 0f; }
     }
 

@@ -34,18 +34,24 @@ public static class OnistoneLore
         "The small Oni Stones merchants sell are chips from the great ones.";
 
     // The last letter from the traveller's father (shown on the black screen of a new game, and kept in the Diary)
-    public const string FatherLetter =
+    const string Letter1 =
         "My son,\n\n" +
-        "If this letter found you, then the man who wrote it is already gone, even if his body still walks.\n\n" +
+        "If this letter found you, then the man who wrote it is already gone, even if his body still walks.";
+    const string Letter2 =
         "After the fire took your mother and little Hana, I swore that no warlord would ever burn another village for a demon stone. " +
         "To keep that promise I set a chip of one into my blade. It made me strong. It is also eating me, one memory at a time. " +
-        "This morning I could not remember your mother's voice.\n\n" +
+        "This morning I could not remember your mother's voice.";
+    const string Letter3 =
         "Do not follow me. Burn my letters. Live.\n\n" +
         "But you are my son, so you will follow anyway. Then find the five Onistones before the warlords do, " +
-        "and seal them where no one can ever wake them again.\n\n" +
+        "and seal them where no one can ever wake them again.";
+    const string Letter4 =
         "And if, at the end of the road, you meet a man with my face who does not know your name, do not grieve for him. " +
         "Grieve for the man who wrote this, and finish what he could not.\n\n" +
         "Your father,\nDaigo";
+    public const string FatherLetter = Letter1 + "\n\n" + Letter2 + "\n\n" + Letter3 + "\n\n" + Letter4;
+    // The same letter in pages (\f between them): the new game shows it one page at a time
+    public const string FatherLetterPages = Letter1 + "\f" + Letter2 + "\f" + Letter3 + "\f" + Letter4;
 
     // The Onistone that lies in this valley
     public const Onistone LocalStone = Onistone.Wind;

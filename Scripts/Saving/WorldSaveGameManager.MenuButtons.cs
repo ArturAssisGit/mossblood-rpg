@@ -47,7 +47,7 @@ public partial class WorldSaveGameManager
         StartedFromMenu = true;
         Time.timeScale = 1f; // loading from the pause menu
         bool fromMenu = TitleScreenManager.IsOpen;
-        string introText = OnistoneLore.FatherLetter; // the story's opening letter (one place: OnistoneLore, also kept in the Diary)
+        string introText = OnistoneLore.FatherLetterPages; // the story's opening letter, one page at a time (one place: OnistoneLore, also kept in the Diary)
         bool hasIntro = data == null && !string.IsNullOrWhiteSpace(introText);
         // New game: the world comes in over newGameFadeSeconds (0 = a short fade). A save: a short fade.
         float fadeSeconds = data == null ? (newGameFadeSeconds > 0f ? newGameFadeSeconds : 1.5f) : fromMenu ? 1.4f : 1f;
@@ -98,6 +98,8 @@ public partial class WorldSaveGameManager
             while (ScreenFade.IntroShowing) yield return null;
         }
         ScreenFade.FadeIn(fadeSeconds, data != null || newGameFadeSound);
+        if (data == null) NewGameTutorial.Begin(); // the first steps, one at a time
+        else NewGameTutorial.Stop();
     }
 
     void StartSeatedIfWanted()
