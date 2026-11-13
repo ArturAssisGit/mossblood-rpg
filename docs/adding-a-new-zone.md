@@ -1,7 +1,8 @@
 # Adding a new zone (island)
 
-The main quest already has five chapters (MainQuest.cs). Zones I and II exist. The next ones are waiting for their
-islands, with these names (rename them in MainQuest.cs if you like, before you build the island):
+MainQuest defines five chapters. The current Unity scene contains the zones for Chapters I, II and III. Check the River Lands quest chain in Play Mode. The islands for Chapters IV and V are planned.
+
+These are the names and gate requirements for Chapters III to V.
 
 - **III** The River Lands · stone: the Patient Onistone · opened by: the Hungry Onistone (zone II)
 - **IV** The Old Battlefield · stone: the Untiring Onistone · opened by: the Patient Onistone
