@@ -36,7 +36,7 @@ The main quest should feel like detective work, not like following a marker. The
 
 ## Tooling
 
-**Mossblood > Check > Main Quest and Zones** walks every chapter of the open scene and reports problems: missing island, wrong lock, missing gate, a story person not in the world, no Onistone chest, a stone that is only a random roll. Adding an island is a checklist: [Adding a New Zone](../adding-a-new-zone.md).
+**Mossblood > Check > Main Quest and Zones** walks every chapter of the open scene and reports problems: missing island, wrong lock, missing gate, a story person not in the world, no Onistone chest, a stone that is only a random roll.
 
 ## What I would test next
 

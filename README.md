@@ -118,7 +118,6 @@ A one-line description of every script is in [AGENTS.md](AGENTS.md) (the project
 
 - [Game Design Document (v5)](docs/GDD%20-%20Mossblood%20v5.docx)
 - [Technical Design Document (v5)](docs/TDD%20-%20Mossblood%20v5.docx)
-- [Adding a new zone](docs/adding-a-new-zone.md)
 - Mechanic breakdowns:
   - [Combat and boss fights](docs/mechanics/01-combat-and-bosses.md)
   - [Survival: needs, sleep and the sea border](docs/mechanics/02-survival.md)
